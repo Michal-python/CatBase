@@ -45,10 +45,6 @@ public class CatBaseClient {
         }
     }
 
-    public void sendMessage(@NotNull String message) {
-        this.outputStream.println(message);
-    }
-
     public Socket getSocket() {
         return socket;
     }

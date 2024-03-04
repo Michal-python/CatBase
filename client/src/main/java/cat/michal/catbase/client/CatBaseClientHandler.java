@@ -24,15 +24,7 @@ public class CatBaseClientHandler implements Runnable {
     @Override
     public void run() {
         while (catBaseClient.isConnected()) {
-            String message;
-            try {
-                message = inputStream.readLine();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-            if (message != null) {
-                catBaseClient.sendMessage(message);
-            }
+
         }
     }
 }

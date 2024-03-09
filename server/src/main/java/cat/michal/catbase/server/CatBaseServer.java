@@ -2,8 +2,8 @@ package cat.michal.catbase.server;
 
 import cat.michal.catbase.common.exception.CatBaseException;
 import cat.michal.catbase.common.model.CatBaseConnection;
-import cat.michal.catbase.server.event.impl.ConnectionEstablishEvent;
 import cat.michal.catbase.server.event.EventDispatcher;
+import cat.michal.catbase.server.event.impl.ConnectionEstablishEvent;
 import cat.michal.catbase.server.procedure.ProcedureRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,7 +52,7 @@ public class CatBaseServer implements BaseServer {
             if(connection != null) {
                 CatBaseConnection catBaseConnection = ProcedureRegistry.CONNECTION_ESTABLISHMENT_PROCEDURE.proceed(connection);
                 connections.add(catBaseConnection);
-                eventDispatcher.dispatch(new ConnectionEstablishEvent(catBaseConnection), ConnectionEstablishEvent.class);
+                eventDispatcher.dispatch(new ConnectionEstablishEvent(catBaseConnection));
 
                 new Thread(new CatBaseServerHandler(catBaseConnection, eventDispatcher)).start();
             }

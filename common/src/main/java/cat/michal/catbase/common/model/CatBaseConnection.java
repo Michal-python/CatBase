@@ -16,14 +16,16 @@ public record CatBaseConnection(UUID id, Socket socket) {
         }
     };
 
-    public synchronized void sendPacket(Message packet) {
+    public synchronized boolean sendPacket(Message packet) {
         try {
             byte[] payload = cborMapper.get().writeValueAsBytes(packet);
             CommunicationHeader header = new CommunicationHeader(payload.length);
             header.writeTo(socket().getOutputStream());
             socket().getOutputStream().write(payload);
+            return true;
         } catch (IOException ignored) {
             //TODO add error handling
+            return false;
         }
     }
 }

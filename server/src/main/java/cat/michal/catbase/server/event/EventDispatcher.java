@@ -1,28 +1,42 @@
 package cat.michal.catbase.server.event;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
 public class EventDispatcher {
 
-    private final List<Consumer<Event>> hooks;
+    private static EventDispatcher instance;
+    private final List<EventListener<Event>> hooks;
 
     public EventDispatcher() {
         this.hooks = new ArrayList<>();
+        instance = this;
     }
 
-    @SuppressWarnings("UNSAFE")
-    public <T extends Event> void hook(Consumer<T> callback) {
-        this.hooks.add((Consumer<Event>) callback);
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public <T extends Event> void hook(Class<T> clazz, Consumer<T> callback) {
+        this.hooks.add(new EventListener(callback, clazz));
     }
 
-    @SuppressWarnings("unsafe")
-    public <T extends Event> void dispatch(Event event, Class<T> clazz) {
+    public <T extends Event> void unhook(Consumer<T> callback) {
+        this.hooks.removeIf(l -> l.consumer == callback);
+    }
+
+    public <T extends Event> void dispatch(T event) {
         hooks.stream()
-                .filter(hook -> hook.getClass().getGenericInterfaces()[0].getClass().equals(event.getClass()))
-                .forEach(hook -> {
-                    hook.accept(clazz.cast(event));
-                });
+                .filter(hook -> hook.clazz == event.getClass())
+                .forEach(hook -> hook.consumer.accept(event));
+    }
+
+    private record EventListener<T extends Event>(
+            Consumer<T> consumer,
+            Class<T> clazz
+    ) {}
+
+    public static @NotNull EventDispatcher getInstance() {
+        return instance;
     }
 }

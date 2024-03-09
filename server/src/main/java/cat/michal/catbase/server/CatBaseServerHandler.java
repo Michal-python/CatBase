@@ -5,8 +5,8 @@ import cat.michal.catbase.common.exception.CatBaseException;
 import cat.michal.catbase.common.message.Message;
 import cat.michal.catbase.common.model.CatBaseConnection;
 import cat.michal.catbase.common.model.CommunicationHeader;
-import cat.michal.catbase.server.event.impl.ConnectionEndEvent;
 import cat.michal.catbase.server.event.EventDispatcher;
+import cat.michal.catbase.server.event.impl.ConnectionEndEvent;
 import cat.michal.catbase.server.exchange.Exchange;
 import cat.michal.catbase.server.procedure.ProcedureRegistry;
 import com.fasterxml.jackson.databind.ObjectReader;
@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.logging.Level;
 
 public class CatBaseServerHandler implements Runnable {
     private static final Logger logger = LoggerFactory.getLogger(CatBaseServerHandler.class);
@@ -50,7 +49,7 @@ public class CatBaseServerHandler implements Runnable {
         } catch (IOException ignored) {
         }
         Thread.currentThread().interrupt();
-        eventDispatcher.dispatch(new ConnectionEndEvent(client), ConnectionEndEvent.class);
+        eventDispatcher.dispatch(new ConnectionEndEvent(client));
     }
 
     @Override

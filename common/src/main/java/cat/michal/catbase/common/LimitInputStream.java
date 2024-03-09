@@ -1,4 +1,4 @@
-package cat.michal.catbase.server;
+package cat.michal.catbase.common;
 
 import java.io.FilterInputStream;
 import java.io.IOException;

@@ -2,6 +2,8 @@ package cat.michal.catbase.common.model;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.zip.CRC32;
 
@@ -21,7 +23,7 @@ public class CommunicationHeader {
         this.checksum = checksum;
     }
 
-    private CommunicationHeader(int length) {
+    public CommunicationHeader(int length) {
         this.length = length;
     }
 
@@ -35,6 +37,14 @@ public class CommunicationHeader {
         }
 
         return header;
+    }
+
+    public void writeTo(@NotNull OutputStream stream) throws IOException {
+        var buffer = ByteBuffer.allocate(12);
+        buffer.putInt(0, length);
+        buffer.putLong(1, checksum);
+
+        stream.write(buffer.array());
     }
 
     public long generateChecksum() {

@@ -11,4 +11,6 @@ public interface Exchange {
     List<PacketQueue> queues();
 
     String getName();
+
+    String getTypeName();
 }

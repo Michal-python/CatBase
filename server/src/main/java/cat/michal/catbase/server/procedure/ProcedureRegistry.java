@@ -6,4 +6,5 @@ public final class ProcedureRegistry {
 
     public static final ConnectionEstablishmentProcedure CONNECTION_ESTABLISHMENT_PROCEDURE = new ConnectionEstablishmentProcedure();
     public static final ExchangeDetermineProcedure EXCHANGE_DETERMINE_PROCEDURE = new ExchangeDetermineProcedure();
+    public static final InternalMessageProcedure INTERNAL_MESSAGE_PROCEDURE = new InternalMessageProcedure();
 }

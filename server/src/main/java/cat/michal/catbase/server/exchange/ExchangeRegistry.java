@@ -10,7 +10,6 @@ public final class ExchangeRegistry {
         if(exchanges.stream().anyMatch(element -> element.getName().equals(exchange.getName()))) {
             throw new IllegalArgumentException("Exchanges' names must be unique (" + exchange.getName() + ")");
         }
-
         exchanges.add(exchange);
     }
 

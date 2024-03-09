@@ -12,8 +12,6 @@ public class CatBaseClient {
 
     private final String host;
     private final int port;
-    private PrintWriter outputStream;
-
 
     private boolean connected;
 
@@ -29,7 +27,6 @@ public class CatBaseClient {
             this.socket.setReuseAddress(true);
             this.socket.setKeepAlive(true);
             this.connected = true;
-            this.outputStream = new PrintWriter(socket.getOutputStream(), true);
             new Thread(new CatBaseClientHandler(this)).start();
         } catch (IOException e) {
             throw new CatBaseException(e);

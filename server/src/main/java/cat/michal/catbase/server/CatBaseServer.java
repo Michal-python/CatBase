@@ -38,8 +38,6 @@ public class CatBaseServer implements BaseServer {
             throw new CatBaseException(e);
         }
 
-        logger.info("Started server on port " + this.port);
-
         while (this.running) {
             Socket connection = null;
 
@@ -61,11 +59,17 @@ public class CatBaseServer implements BaseServer {
         }
     }
 
+    public int getPort() {
+        return port;
+    }
+
     @Override
     public void stopServer() {
         try {
             this.running = false;
-            serverSocket.close();
+            if(serverSocket != null) {
+                serverSocket.close();
+            }
             this.serverSocket = null;
 
             //general cleanup

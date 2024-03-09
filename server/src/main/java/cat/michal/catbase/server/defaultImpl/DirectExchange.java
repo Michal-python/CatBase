@@ -15,10 +15,6 @@ public class DirectExchange implements Exchange {
         this.name = name;
     }
 
-    public void registerQueue(PacketQueue queue) {
-        queues.add(queue);
-    }
-
     @Override
     public boolean route(Message message) {
         boolean routed = false;

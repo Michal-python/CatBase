@@ -1,6 +1,7 @@
 package cat.michal.catbase.server.defaultImpl;
 
 import cat.michal.catbase.common.message.Message;
+import cat.michal.catbase.common.model.CatBaseConnection;
 import cat.michal.catbase.server.exchange.Exchange;
 import cat.michal.catbase.server.packets.PacketQueue;
 
@@ -16,11 +17,11 @@ public class DirectExchange implements Exchange {
     }
 
     @Override
-    public boolean route(Message message) {
+    public boolean route(Message message, CatBaseConnection connection) {
         boolean routed = false;
         for(PacketQueue queue : queues) {
             if (queue.getName().equals(message.getRoutingKey())) {
-                queue.addPacket(message);
+                queue.addPacket(message, connection);
                 routed = true;
             }
         }

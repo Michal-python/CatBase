@@ -1,5 +1,6 @@
 package cat.michal.catbase.common.packet;
 
+import cat.michal.catbase.common.packet.clientBound.ErrorPacket;
 import cat.michal.catbase.common.packet.serverBound.HandshakePacket;
 import cat.michal.catbase.common.packet.serverBound.AcknowledgementPacket;
 import org.jetbrains.annotations.NotNull;
@@ -9,7 +10,8 @@ import java.util.Optional;
 
 public enum PacketType {
     HANDSHAKE(HandshakePacket.class, 0x01),
-    ACKNOWLEDGEMENT_PACKET(AcknowledgementPacket.class, 0x02);
+    ACKNOWLEDGEMENT_PACKET(AcknowledgementPacket.class, 0x02),
+    ERROR_PACKET(ErrorPacket.class, 0x03);
 
     private final Class<? extends SerializablePayload> clazz;
     private final long id;

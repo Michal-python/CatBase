@@ -11,24 +11,39 @@ import java.util.UUID;
 
 public final class Message {
     private static final ObjectReader cborMapper = new CBORMapper().reader();
-    private final MessageProperties properties;
     private final byte[] payload;
     private final UUID correlationId;
+    private boolean isResponse;
+    private boolean shouldRespond;
     private final long packetId;
     private final String routingKey;
     private final String exchangeName;
 
-    public Message(MessageProperties properties, byte[] payload, UUID correlationId, long packetId, String routingKey, String exchangeName) {
-        this.properties = properties;
+    public Message(byte[] payload, UUID correlationId, long packetId, String routingKey, String exchangeName) {
         this.payload = payload;
         this.exchangeName = exchangeName;
         this.routingKey = routingKey;
         this.packetId = packetId;
+        this.isResponse = false;
         this.correlationId = correlationId == null ? UUID.randomUUID() : correlationId;
     }
 
-    public MessageProperties getProperties() {
-        return properties;
+    public Message setResponse(boolean val) {
+        this.isResponse = val;
+        return this;
+    }
+
+    public Message setShouldRespond(boolean val) {
+        this.shouldRespond = val;
+        return this;
+    }
+
+    public boolean shouldRespond() {
+        return shouldRespond;
+    }
+
+    public boolean isResponse() {
+        return isResponse;
     }
 
     public byte[] getPayload() {
@@ -50,6 +65,7 @@ public final class Message {
     public String getExchangeName() {
         return exchangeName;
     }
+
 
     public SerializablePayload deserializePayload() {
         Optional<PacketType> type = PacketType.findType(this.getPacketId());

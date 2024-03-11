@@ -1,4 +1,3 @@
-import cat.michal.catbase.client.CatBaseClient;
 import junit.framework.TestCase;
 import org.junit.Test;
 

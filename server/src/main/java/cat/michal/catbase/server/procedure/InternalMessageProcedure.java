@@ -1,11 +1,19 @@
 package cat.michal.catbase.server.procedure;
 
 import cat.michal.catbase.common.message.Message;
+import cat.michal.catbase.common.packet.ErrorType;
+import cat.michal.catbase.common.packet.PacketType;
 import cat.michal.catbase.common.packet.SerializablePayload;
+import cat.michal.catbase.common.packet.clientBound.ErrorPacket;
+import cat.michal.catbase.common.packet.serverBound.AcknowledgementPacket;
 import cat.michal.catbase.common.packet.serverBound.HandshakePacket;
+import cat.michal.catbase.common.packet.serverBound.QueueSubscribePacket;
+import cat.michal.catbase.common.packet.serverBound.QueueUnsubscribePacket;
 import cat.michal.catbase.server.CatBaseServerHandler;
 import cat.michal.catbase.server.auth.User;
 import cat.michal.catbase.server.auth.UserRegistry;
+import cat.michal.catbase.server.exchange.ExchangeRegistry;
+import com.fasterxml.jackson.core.JsonProcessingException;
 
 import java.util.Optional;
 
@@ -29,6 +37,26 @@ public class InternalMessageProcedure implements BiProcedure<Boolean, Message, C
             }
 
             connection.verify();
+        }
+        if(payload instanceof QueueSubscribePacket queuePacket) {
+            ExchangeRegistry.findQueue(queuePacket.queueName).ifPresentOrElse(queue -> {
+                queue.subscribe(connection.getClient());
+                connection.getClient().sendAcknowledgement(arg);
+            }, () -> {
+                connection.getClient().sendError(
+                        new ErrorPacket(ErrorType.QUEUE_NOT_FOUND, "Queue '" + queuePacket.queueName + "' was not found"),
+                        arg
+                );
+            });
+        }
+        if(payload instanceof QueueUnsubscribePacket queueUnsubscribePacket) {
+            ExchangeRegistry.findQueue(queueUnsubscribePacket.queueName).ifPresentOrElse(queue -> {
+                queue.unsubscribe(connection.getClient());
+                connection.getClient().sendAcknowledgement(arg);
+            }, () -> connection.getClient().sendError(
+                    new ErrorPacket(ErrorType.QUEUE_NOT_FOUND, "Queue '" + queueUnsubscribePacket.queueName + "' was not found"),
+                    arg
+            ));
         }
         return false;
     }

@@ -18,6 +18,11 @@ public final class Message {
     private final long packetId;
     private final String routingKey;
     private final String exchangeName;
+    /**
+     * If this message is either a response, or being received by a consumer,
+     * this field indicates the origin queue; otherwise it is null
+     */
+    private String originQueue;
 
     public Message(byte[] payload, UUID correlationId, long packetId, String routingKey, String exchangeName) {
         this.payload = payload;
@@ -35,6 +40,11 @@ public final class Message {
 
     public Message setShouldRespond(boolean val) {
         this.shouldRespond = val;
+        return this;
+    }
+
+    public Message setOriginQueue(String queueName) {
+        this.originQueue = queueName;
         return this;
     }
 
@@ -66,6 +76,9 @@ public final class Message {
         return exchangeName;
     }
 
+    public String getOriginQueue() {
+        return originQueue;
+    }
 
     public SerializablePayload deserializePayload() {
         Optional<PacketType> type = PacketType.findType(this.getPacketId());

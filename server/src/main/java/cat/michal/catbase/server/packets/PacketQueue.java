@@ -7,12 +7,15 @@ import cat.michal.catbase.common.packet.SerializablePayload;
 import cat.michal.catbase.common.packet.clientBound.ErrorPacket;
 import cat.michal.catbase.common.packet.serverBound.AcknowledgementPacket;
 import cat.michal.catbase.common.packet.serverBound.ErrorAcknowledgementPacket;
+import cat.michal.catbase.server.data.ListKeeper;
+import cat.michal.catbase.server.data.TimedList;
 import cat.michal.catbase.server.event.EventDispatcher;
 import cat.michal.catbase.server.event.impl.ConnectionEndEvent;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.ref.WeakReference;
-import java.util.*;
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.function.Consumer;
 import java.util.stream.IntStream;
@@ -20,8 +23,8 @@ import java.util.stream.IntStream;
 public abstract class PacketQueue {
     private final String name;
     protected Queue<Message> queue;
-    protected Queue<ReceivedMessage> receivedMessages;
-    protected final List<SentMessage> sentPackets = new ArrayList<>();
+    protected final TimedList<ReceivedMessage> receivedMessages = ListKeeper.getInstance().createDefaultTimeList();
+    protected final TimedList<SentMessage> sentPackets = ListKeeper.getInstance().createDefaultTimeList();
     protected final Queue<CatBaseConnection> connections = new LinkedList<>();
     private final PacketRedirectThread packetRedirectThread;
 
@@ -37,10 +40,11 @@ public abstract class PacketQueue {
 
     /**
      * Redirects packet to packet queue listeners
+     *
      * @param packet packet to redirect
      */
     public void redirectPacket(Message packet) {
-        if(this.routePacket(packet))
+        if (this.routePacket(packet))
             queue.removeIf(packetElement -> packetElement.getCorrelationId() == packet.getCorrelationId());
     }
 
@@ -53,10 +57,10 @@ public abstract class PacketQueue {
         }
     }
 
-    public void addPacket(@NotNull Message packet, CatBaseConnection connection) {
+    public void addPacket(@NotNull Message packet, CatBaseConnection origin) {
         SerializablePayload payload = packet.deserializePayload();
-        if(payload instanceof AcknowledgementPacket ackPacket) {
-            if(!ackPacket.shouldRespond) {
+        if (payload instanceof AcknowledgementPacket ackPacket) {
+            if (!ackPacket.shouldRespond) {
                 sentPackets.removeIf(toSendElement -> toSendElement.message.getCorrelationId() == packet.getCorrelationId());
             }
             return;
@@ -71,23 +75,25 @@ public abstract class PacketQueue {
             return;
         }
 
-        if(packet.isResponse()) {
+        if (packet.isResponse()) {
             receivedMessages.stream()
                     .filter(packetElement -> packetElement.message.getCorrelationId().equals(packet.getCorrelationId()))
                     .findFirst().ifPresentOrElse(packetElement -> {
-                        if(packetElement.message.shouldRespond()) {
-                            Objects.requireNonNull(packetElement.connection.get())
-                                    .sendAcknowledgement(packet);
+                        if (packetElement.message.shouldRespond()) {
+                            CatBaseConnection requesterConnection = packetElement.connection.get();
+                            if (requesterConnection == null || !requesterConnection.sendPacket(packet.setOriginQueue(this.name))) {
+                                origin.sendError(new ErrorPacket(ErrorType.UNSPECIFIED, "The sender is long gone!"), packet);
+                            }
                             receivedMessages.removeIf(msg -> msg.message.getCorrelationId().equals(packet.getCorrelationId()));
                         } else {
-                            connection.sendError(new ErrorPacket(ErrorType.UNSPECIFIED, "Got response but shouldn't"), packet);
+                            origin.sendError(new ErrorPacket(ErrorType.UNSPECIFIED, "The sender did not expect a response"), packet);
                         }
-                    }, () -> connection.sendError(new ErrorPacket(ErrorType.UNSPECIFIED, null), packet));
+                    }, () -> origin.sendError(new ErrorPacket(ErrorType.UNSPECIFIED, "Nothing to respond to!"), packet));
             return;
         }
 
         if (packet.shouldRespond()) {
-            receivedMessages.add(new ReceivedMessage(packet, new WeakReference<>(connection)));
+            receivedMessages.add(new ReceivedMessage(packet, new WeakReference<>(origin)));
         }
         queue.add(packet);
         packetRedirectThread.wake();
@@ -107,7 +113,8 @@ public abstract class PacketQueue {
             if (p.connection.get() == connection) {
                 queue.add(p.message);
                 return true;
-            } return false;
+            }
+            return false;
         });
     }
 
@@ -130,9 +137,12 @@ public abstract class PacketQueue {
     public record SentMessage(
             Message message,
             WeakReference<CatBaseConnection> connection
-    ) {}
+    ) {
+    }
+
     public record ReceivedMessage(
             Message message,
             WeakReference<CatBaseConnection> connection
-    ) {}
+    ) {
+    }
 }

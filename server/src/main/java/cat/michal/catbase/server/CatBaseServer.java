@@ -54,7 +54,7 @@ public class CatBaseServer implements BaseServer {
                 connections.add(catBaseConnection);
                 eventDispatcher.dispatch(new ConnectionEstablishEvent(catBaseConnection));
 
-                new Thread(new CatBaseServerHandler(catBaseConnection, eventDispatcher)).start();
+                new Thread(new CatBaseServerCommunicationThread(catBaseConnection, eventDispatcher)).start();
             }
         }
     }

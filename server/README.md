@@ -6,6 +6,9 @@ It exists, and allows full configuration of the server
 
 ```yaml
 port: 52137 # Server port
+users:
+  - login: "login"
+    password: "zaq1@WSX"
 queues: # All message queues
   - name: "Queue 1"
     size: 100 # Default is 200

@@ -5,7 +5,6 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 import java.util.function.Predicate;
-import java.util.stream.Stream;
 
 public class TimedList<V> implements List<V> {
 
@@ -16,6 +15,12 @@ public class TimedList<V> implements List<V> {
     private final List<TimedRecord<V>> backingList;
     private TimeSource timeSource;
     private long timeout;
+
+    public Object getMutex() {
+        return mutex;
+    }
+
+    private final Object mutex = new Object();
 
     public TimeSource getTimeSource() {
         return timeSource;
@@ -47,16 +52,15 @@ public class TimedList<V> implements List<V> {
 
     @Override
     public boolean contains(Object o) {
-        return backingList.stream().anyMatch(e -> Objects.equals(e.value, o));
+        synchronized (mutex) {
+            return backingList.stream().anyMatch(e -> Objects.equals(e.value, o));
+        }
     }
 
-    /**
-     * Warn, this iterator probably won't allow removal
-     */
     @NotNull
     @Override
     public Iterator<V> iterator() {
-        return valueStream().iterator();
+        return new TimedListIterator<>();
     }
 
     @NotNull
@@ -73,108 +77,143 @@ public class TimedList<V> implements List<V> {
 
     @Override
     public boolean add(V v) {
-        return this.backingList.add(new TimedRecord<>(v, timeSource.nanos()));
+        synchronized (mutex) {
+            return this.backingList.add(new TimedRecord<>(v, timeSource.nanos()));
+        }
     }
 
     @Override
     public boolean remove(Object o) {
-        for (Iterator<TimedRecord<V>> it = backingList.iterator(); it.hasNext(); )
-            if (Objects.equals(o, it.next().value)) {
-                it.remove();
-                return true;
-            }
-        return false;
+        synchronized (mutex) {
+            for (Iterator<TimedRecord<V>> it = backingList.iterator(); it.hasNext(); )
+                if (Objects.equals(o, it.next().value)) {
+                    it.remove();
+                    return true;
+                }
+            return false;
+        }
     }
 
     public boolean removeIf(Predicate<? super V> filter) {
-        Objects.requireNonNull(filter);
-        boolean removed = false;
-        final Iterator<TimedRecord<V>> each = backingList.iterator();
-        while (each.hasNext()) {
-            if (filter.test(each.next().value)) {
-                each.remove();
-                removed = true;
+        synchronized (mutex) {
+            Objects.requireNonNull(filter);
+            long now = timeSource.nanos();
+            boolean removed = false;
+            final Iterator<TimedRecord<V>> each = backingList.iterator();
+            while (each.hasNext()) {
+                var record = each.next();
+                if (!record.isValid(timeout, now)) continue;
+                if (filter.test(record.value)) {
+                    each.remove();
+                    removed = true;
+                }
             }
+            return removed;
         }
-        return removed;
     }
 
     @Override
     public boolean containsAll(@NotNull Collection<?> c) {
-        return c.stream().allMatch(this::contains);
+        synchronized (mutex) {
+            return c.stream().allMatch(this::contains);
+        }
     }
 
     @Override
     public boolean addAll(@NotNull Collection<? extends V> c) {
-        c.forEach(this::add);
-        return !c.isEmpty();
+        synchronized (mutex) {
+            c.forEach(this::add);
+            return !c.isEmpty();
+        }
     }
 
     @Override
     public boolean addAll(int index, @NotNull Collection<? extends V> c) {
-        long now = timeSource.nanos();
-        return backingList.addAll(index, c.stream().map(v -> new TimedRecord<V>(v, now)).toList());
+        synchronized (mutex) {
+            long now = timeSource.nanos();
+            return backingList.addAll(index, c.stream().map(v -> new TimedRecord<V>(v, now)).toList());
+        }
     }
 
     @Override
     public boolean removeAll(@NotNull Collection<?> c) {
-        return backingList.removeIf(record -> c.contains(record.value));
+        synchronized (mutex) {
+            return backingList.removeIf(record -> c.contains(record.value));
+        }
     }
 
     @Override
     public boolean retainAll(@NotNull Collection<?> c) {
-        return backingList.removeIf(record -> !c.contains(record.value));
+        synchronized (mutex) {
+            return backingList.removeIf(record -> !c.contains(record.value));
+        }
     }
 
     @Override
     public void clear() {
-        backingList.clear();
+        synchronized (mutex) {
+            backingList.clear();
+        }
     }
 
     @Override
     public V get(int index) {
-        var record = backingList.get(index);
-        if (record.isValid(timeout, timeSource.nanos()))
-            return record.value;
-        backingList.remove(index);
-        return null;
+        synchronized (mutex) {
+            var record = backingList.get(index);
+            if (record.isValid(timeout, timeSource.nanos()))
+                return record.value;
+            backingList.remove(index);
+            return null;
+        }
     }
 
     @Override
     public V set(int index, V element) {
-        var removed = backingList.set(index, new TimedRecord<>(element, timeSource.nanos()));
-        return removed != null ? removed.value : null;
+        synchronized (mutex) {
+            var removed = backingList.set(index, new TimedRecord<>(element, timeSource.nanos()));
+            return removed != null ? removed.value : null;
+        }
     }
 
     @Override
     public void add(int index, V element) {
-        backingList.add(index, new TimedRecord<>(element, timeSource.nanos()));
+        synchronized (mutex) {
+            backingList.add(index, new TimedRecord<>(element, timeSource.nanos()));
+        }
     }
 
     @Override
     public V remove(int index) {
-        var removed = backingList.remove(index);
-        return removed != null ? removed.value : null;
+        synchronized (mutex) {
+            var removed = backingList.remove(index);
+            return removed != null ? removed.value : null;
+        }
     }
 
     @Override
     public int indexOf(Object o) {
-        for (int i = 0; i < backingList.size(); i++) {
-            if (Objects.equals(o, backingList.get(i).value)) {
-                return i;
+        synchronized (mutex) {
+            long now = timeSource.nanos();
+            for (int i = 0; i < backingList.size(); i++) {
+                if (backingList.get(i).isValid(timeout, now) && Objects.equals(o, backingList.get(i).value)) {
+                    return i;
+                }
             }
+            return -1;
         }
-        return -1;
     }
 
     @Override
     public int lastIndexOf(Object o) {
-        for (int i = backingList.size() - 1; i >= 0; i--) {
-            if (Objects.equals(o, backingList.get(i).value)) {
-                return i;
+        synchronized (mutex) {
+            long now = timeSource.nanos();
+            for (int i = backingList.size() - 1; i >= 0; i--) {
+                if (backingList.get(i).isValid(timeout, now) && Objects.equals(o, backingList.get(i).value)) {
+                    return i;
+                }
             }
+            return -1;
         }
-        return -1;
     }
 
     @NotNull
@@ -195,14 +234,34 @@ public class TimedList<V> implements List<V> {
         throw new UnsupportedOperationException("Not implemented");
     }
 
-    private Stream<V> valueStream() {
-        long now = timeSource.nanos();
-        return backingList.stream().filter(vTimedRecord -> vTimedRecord.isValid(timeout, now)).map(i -> i.value);
+    /**
+     * Finds the first element matching the provided predicate and removes it from the list.
+     * Timed out elements will not be returned.
+     *
+     * @param filter The predicate
+     * @return the element or null
+     */
+    public V findAndRemove(Predicate<? super V> filter) {
+        synchronized (mutex) {
+            Objects.requireNonNull(filter);
+            long now = timeSource.nanos();
+            for (int i = 0; i < backingList.size(); i++) {
+                var record = backingList.get(i);
+                if (!record.isValid(timeout, now)) continue;
+                if (filter.test(record.value)) {
+                    backingList.remove(i);
+                    return record.value;
+                }
+            }
+            return null;
+        }
     }
 
     public void removeStale() {
-        long now = timeSource.nanos();
-        this.backingList.removeIf(e -> !e.isValid(timeout, now));
+        synchronized (mutex) {
+            long now = timeSource.nanos();
+            this.backingList.removeIf(e -> !e.isValid(timeout, now));
+        }
     }
 
     private record TimedRecord<V>(
@@ -211,6 +270,36 @@ public class TimedList<V> implements List<V> {
     ) {
         boolean isValid(long timeout, long now) {
             return this.time + timeout > now;
+        }
+    }
+
+    private class TimedListIterator<T> implements Iterator<T> {
+        private int currentIndex = 0;
+        private boolean canRemove = false;
+
+        @Override
+        public boolean hasNext() {
+            return currentIndex < backingList.size();
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public T next() {
+            if (!hasNext()) {
+                throw new NoSuchElementException();
+            }
+            canRemove = true;
+            return (T) backingList.get(currentIndex++).value;
+        }
+
+        @Override
+        public void remove() {
+            if (!canRemove) {
+                throw new IllegalStateException();
+            }
+            currentIndex--;
+            backingList.remove(currentIndex);
+            canRemove = false;
         }
     }
 }

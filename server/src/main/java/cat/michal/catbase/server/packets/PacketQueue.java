@@ -18,7 +18,6 @@ import java.util.LinkedList;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.function.Consumer;
-import java.util.stream.IntStream;
 
 public abstract class PacketQueue {
     private final String name;
@@ -59,36 +58,35 @@ public abstract class PacketQueue {
 
     public void addPacket(@NotNull Message packet, CatBaseConnection origin) {
         SerializablePayload payload = packet.deserializePayload();
+
         if (payload instanceof AcknowledgementPacket ackPacket) {
             if (!ackPacket.shouldRespond) {
                 sentPackets.removeIf(toSendElement -> toSendElement.message.getCorrelationId() == packet.getCorrelationId());
             }
             return;
         } else if (payload instanceof ErrorAcknowledgementPacket errPacket) {
-            var index = IntStream.range(0, sentPackets.size())
-                    .filter(i -> sentPackets.get(i).message.getCorrelationId() == errPacket.correlationId)
-                    .findFirst();
-            if (index.isPresent()) {
-                var sentMessage = sentPackets.remove(index.getAsInt());
+            var sentMessage = sentPackets.findAndRemove(e -> e.message.getCorrelationId() == errPacket.correlationId);
+            if (sentMessage != null) {
                 addPacket(sentMessage.message, sentMessage.connection.get());
             }
             return;
         }
 
         if (packet.isResponse()) {
-            receivedMessages.stream()
-                    .filter(packetElement -> packetElement.message.getCorrelationId().equals(packet.getCorrelationId()))
-                    .findFirst().ifPresentOrElse(packetElement -> {
-                        if (packetElement.message.shouldRespond()) {
-                            CatBaseConnection requesterConnection = packetElement.connection.get();
-                            if (requesterConnection == null || !requesterConnection.sendPacket(packet.setOriginQueue(this.name))) {
-                                origin.sendError(new ErrorPacket(ErrorType.UNSPECIFIED, "The sender is long gone!"), packet);
-                            }
-                            receivedMessages.removeIf(msg -> msg.message.getCorrelationId().equals(packet.getCorrelationId()));
-                        } else {
-                            origin.sendError(new ErrorPacket(ErrorType.UNSPECIFIED, "The sender did not expect a response"), packet);
-                        }
-                    }, () -> origin.sendError(new ErrorPacket(ErrorType.UNSPECIFIED, "Nothing to respond to!"), packet));
+            var packetElement = receivedMessages.findAndRemove(element -> element.message.getCorrelationId().equals(packet.getCorrelationId()));
+            if (packetElement != null) {
+                if (packetElement.message.shouldRespond()) {
+                    CatBaseConnection requesterConnection = packetElement.connection.get();
+                    if (requesterConnection == null || !requesterConnection.sendPacket(packet.setOriginQueue(this.name))) {
+                        origin.sendError(new ErrorPacket(ErrorType.UNSPECIFIED, "The sender is long gone!"), packet);
+                    }
+                    receivedMessages.removeIf(msg -> msg.message.getCorrelationId().equals(packet.getCorrelationId()));
+                } else {
+                    origin.sendError(new ErrorPacket(ErrorType.UNSPECIFIED, "The sender did not expect a response"), packet);
+                }
+            } else {
+                origin.sendError(new ErrorPacket(ErrorType.UNSPECIFIED, "Nothing to respond to!"), packet);
+            }
             return;
         }
 

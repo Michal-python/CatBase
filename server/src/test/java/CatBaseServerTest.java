@@ -2,7 +2,7 @@ import cat.michal.catbase.server.CatBaseServer;
 import cat.michal.catbase.server.defaultImpl.DefaultQueue;
 import cat.michal.catbase.server.defaultImpl.DirectExchange;
 import cat.michal.catbase.server.exchange.ExchangeRegistry;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 

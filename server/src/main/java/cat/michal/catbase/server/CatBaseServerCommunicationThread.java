@@ -13,18 +13,14 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.cbor.CBORFactory;
 import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.ByteBuffer;
 import java.util.Timer;
 import java.util.TimerTask;
 
 public class CatBaseServerCommunicationThread implements Runnable {
-    private static final Logger logger = LoggerFactory.getLogger(CatBaseServerHandler.class);
     private static final CBORFactory cborFactory = new CBORFactory();
     private static final ObjectMapper cborMapper = new ObjectMapper(cborFactory);
     private final CatBaseConnection client;
@@ -104,6 +100,7 @@ public class CatBaseServerCommunicationThread implements Runnable {
                         new ErrorPacket(ErrorType.EXCHANGE_NOT_FOUND, "Exchange '" + message.getExchangeName() + "' was not found"),
                         message
                 );
+                return true;
             }
 
             if (!exchange.route(message, this.getClient())) {

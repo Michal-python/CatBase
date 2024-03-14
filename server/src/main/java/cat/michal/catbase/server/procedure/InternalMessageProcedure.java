@@ -7,16 +7,16 @@ import cat.michal.catbase.common.packet.clientBound.ErrorPacket;
 import cat.michal.catbase.common.packet.serverBound.HandshakePacket;
 import cat.michal.catbase.common.packet.serverBound.QueueSubscribePacket;
 import cat.michal.catbase.common.packet.serverBound.QueueUnsubscribePacket;
-import cat.michal.catbase.server.CatBaseServerHandler;
+import cat.michal.catbase.server.CatBaseServerCommunicationThread;
 import cat.michal.catbase.server.auth.User;
 import cat.michal.catbase.server.auth.UserRegistry;
 import cat.michal.catbase.server.exchange.ExchangeRegistry;
 
 import java.util.Optional;
 
-public class InternalMessageProcedure implements BiProcedure<Boolean, Message, CatBaseServerHandler> {
+public class InternalMessageProcedure implements BiProcedure<Boolean, Message, CatBaseServerCommunicationThread> {
     @Override
-    public Boolean proceed(Message arg, CatBaseServerHandler connection) {
+    public Boolean proceed(Message arg, CatBaseServerCommunicationThread connection) {
         SerializablePayload payload = arg.deserializePayload();
         if(payload instanceof HandshakePacket handshakePacket) {
             Optional<User> userOptional = UserRegistry.getUsers().stream()

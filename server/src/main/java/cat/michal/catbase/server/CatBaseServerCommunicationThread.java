@@ -18,10 +18,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class CatBaseServerHandler implements Runnable {
+public class CatBaseServerCommunicationThread implements Runnable {
     private static final Logger logger = LoggerFactory.getLogger(CatBaseServerHandler.class);
     private static final CBORFactory cborFactory = new CBORFactory();
     private static final ObjectMapper cborMapper = new ObjectMapper(cborFactory);
@@ -35,7 +37,7 @@ public class CatBaseServerHandler implements Runnable {
         cborFactory.disable(JsonParser.Feature.AUTO_CLOSE_SOURCE);
     }
 
-    public CatBaseServerHandler(@NotNull CatBaseConnection client, EventDispatcher eventDispatcher) {
+    public CatBaseServerCommunicationThread(@NotNull CatBaseConnection client, EventDispatcher eventDispatcher) {
         this.client = client;
         this.eventDispatcher = eventDispatcher;
         try {
@@ -76,37 +78,46 @@ public class CatBaseServerHandler implements Runnable {
 
         try {
             parser = cborFactory.createParser(inputStream);
-
-            while (true) {
-                Message message = cborMapper.readValue(parser, Message.class);
-
-                if (ProcedureRegistry.INTERNAL_MESSAGE_PROCEDURE.proceed(message, this)) {
-                    return;
-                }
-
-                Exchange exchange = ProcedureRegistry.EXCHANGE_DETERMINE_PROCEDURE.proceed(message);
-
-                if (exchange == null) {
-                    client.sendError(
-                            new ErrorPacket(ErrorType.EXCHANGE_NOT_FOUND, "Exchange '" + message.getExchangeName() + "' was not found"),
-                            message
-                    );
-                    continue;
-                }
-
-                if (!exchange.route(message, this.getClient())) {
-                    client.sendError(
-                            new ErrorPacket(ErrorType.QUEUE_NOT_FOUND, "Queue from routing key '" + message.getRoutingKey() + "' was not found"),
-                            message
-                    );
-                }
-            }
         } catch (IOException e) {
             endConnection();
         }
+
+        while (true) {
+            if (!readIncomingMessage(this.inputStream)) {
+                return;
+            }
+        }
     }
 
-    private void handleMessage(Message message) {
+    public boolean readIncomingMessage(@NotNull InputStream inputStream) {
+        try {
+            Message message = cborMapper.readValue(parser, Message.class);
 
+            if (ProcedureRegistry.INTERNAL_MESSAGE_PROCEDURE.proceed(message, this)) {
+                return false;
+            }
+
+            Exchange exchange = ProcedureRegistry.EXCHANGE_DETERMINE_PROCEDURE.proceed(message);
+
+            if (exchange == null) {
+                client.sendError(
+                        new ErrorPacket(ErrorType.EXCHANGE_NOT_FOUND, "Exchange '" + message.getExchangeName() + "' was not found"),
+                        message
+                );
+            }
+
+            if (!exchange.route(message, this.getClient())) {
+                client.sendError(
+                        new ErrorPacket(ErrorType.QUEUE_NOT_FOUND, "Queue from routing key '" + message.getRoutingKey() + "' was not found"),
+                        message
+                );
+            }
+        } catch (IOException exception) {
+            endConnection();
+            return false;
+        }
+
+        return true;
     }
+
 }

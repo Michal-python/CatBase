@@ -1,4 +1,4 @@
-package cat.michal.catbase.server.config;
+package cat.michal.catbase.server.config.entities;
 
 public class QueueConfigurationEntity {
     public String name = "";

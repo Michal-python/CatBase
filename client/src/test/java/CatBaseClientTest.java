@@ -1,7 +1,7 @@
-import junit.framework.TestCase;
-import org.junit.Test;
+import cat.michal.catbase.client.CatBaseClient;
+import org.junit.jupiter.api.Test;
 
-public class CatBaseClientTest extends TestCase {
+public class CatBaseClientTest {
 
         @Test
         public void testCatBaseClient() throws InterruptedException {

@@ -6,23 +6,30 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.dataformat.cbor.databind.CBORMapper;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
 public final class Message {
     private static final ObjectReader cborMapper = new CBORMapper().reader();
-    private final byte[] payload;
-    private final UUID correlationId;
+    private byte[] payload;
+    private UUID correlationId;
     private boolean isResponse;
     private boolean shouldRespond;
-    private final long packetId;
-    private final String routingKey;
-    private final String exchangeName;
+    private long packetId;
+    private String routingKey;
+    private String exchangeName;
     /**
      * If this message is either a response, or being received by a consumer,
      * this field indicates the origin queue; otherwise it is null
      */
     private String originQueue;
+
+    /**
+     * Needed for cbor
+     */
+    public Message() {}
 
     public Message(byte[] payload, UUID correlationId, long packetId, String routingKey, String exchangeName) {
         this.payload = payload;
@@ -92,5 +99,20 @@ public final class Message {
         } catch (IOException exception) {
             return null;
         }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Message message = (Message) o;
+        return isResponse == message.isResponse && shouldRespond == message.shouldRespond && packetId == message.packetId && Arrays.equals(payload, message.payload) && Objects.equals(correlationId, message.correlationId) && Objects.equals(routingKey, message.routingKey) && Objects.equals(exchangeName, message.exchangeName) && Objects.equals(originQueue, message.originQueue);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = Objects.hash(correlationId, isResponse, shouldRespond, packetId, routingKey, exchangeName, originQueue);
+        result = 31 * result + Arrays.hashCode(payload);
+        return result;
     }
 }

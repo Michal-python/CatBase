@@ -6,4 +6,8 @@ import java.util.UUID;
 
 public class AcknowledgementPacket implements SerializablePayload {
     public boolean shouldRespond;
+
+    public AcknowledgementPacket(boolean shouldRespond) {
+        this.shouldRespond = shouldRespond;
+    }
 }

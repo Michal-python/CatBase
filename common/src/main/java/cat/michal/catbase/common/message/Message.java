@@ -15,6 +15,9 @@ public final class Message {
     private final UUID correlationId;
     private boolean isResponse;
     private boolean shouldRespond;
+    /**
+     * Cannot be 1, 2 or 3 because it's reserved for internal packet mechanisms
+     */
     private final long packetId;
     private final String routingKey;
     private final String exchangeName;

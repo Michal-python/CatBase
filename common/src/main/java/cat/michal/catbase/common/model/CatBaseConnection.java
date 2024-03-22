@@ -37,7 +37,7 @@ public record CatBaseConnection(UUID id, Socket socket) {
     public void sendAcknowledgement(@NotNull Message reference) {
         try {
             sendPacket(new Message(
-                    new AcknowledgementPacket().serialize(),
+                    new AcknowledgementPacket(false).serialize(),
                     reference.getCorrelationId(),
                     PacketType.ACKNOWLEDGEMENT_PACKET.getId(),
                     null,
@@ -59,7 +59,6 @@ public record CatBaseConnection(UUID id, Socket socket) {
             socket.getOutputStream().write(payload);
             return true;
         } catch (IOException ignored) {
-            //TODO add error handling
             return false;
         }
     }

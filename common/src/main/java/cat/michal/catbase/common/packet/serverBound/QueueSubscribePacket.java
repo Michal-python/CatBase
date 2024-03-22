@@ -4,4 +4,8 @@ import cat.michal.catbase.common.packet.SerializablePayload;
 
 public class QueueSubscribePacket implements SerializablePayload {
     public String queueName;
+
+    public QueueSubscribePacket(String queueName) {
+        this.queueName = queueName;
+    }
 }

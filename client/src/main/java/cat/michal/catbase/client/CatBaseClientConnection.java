@@ -2,20 +2,18 @@ package cat.michal.catbase.client;
 
 import cat.michal.catbase.common.message.Message;
 import cat.michal.catbase.common.model.CatBaseConnection;
-import com.fasterxml.jackson.databind.ObjectWriter;
-import com.fasterxml.jackson.dataformat.cbor.databind.CBORMapper;
+import org.jetbrains.annotations.NotNull;
 
 import java.net.Socket;
+import java.util.List;
 
-public record CatBaseClientConnection(Socket socket) {
-    private static final ThreadLocal<ObjectWriter> cborMapper = new ThreadLocal<>() {
-        @Override
-        public ObjectWriter get() {
-            return new CBORMapper().writer();
+public record CatBaseClientConnection(Socket socket, List<Message> awaitingForAck) {
+    //TODO do some thread for doing something with unacknowledged packets
+
+    public synchronized boolean sendPacket(@NotNull Message message) {
+        if(message.getPacketId() < 6 && message.getPacketId() > 0) {
+            awaitingForAck.add(message);
         }
-    };
-
-    public synchronized boolean sendPacket(Message message) {
         return CatBaseConnection.sendPacket(message, socket);
     }
 }

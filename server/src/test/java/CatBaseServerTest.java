@@ -14,7 +14,14 @@ public class CatBaseServerTest {
 
         ExchangeRegistry.register(new DirectExchange("nigga", List.of(new DefaultQueue(200, "kju"))));
 
+        new Thread(() -> {
+            try {
+                Thread.sleep(500);
+                catBase.stopServer();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }).start();
         catBase.startServer();
-
     }
 }

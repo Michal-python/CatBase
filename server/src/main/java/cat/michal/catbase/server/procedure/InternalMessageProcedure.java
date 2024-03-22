@@ -39,12 +39,10 @@ public class InternalMessageProcedure implements BiProcedure<Boolean, Message, C
             ExchangeRegistry.findQueue(queuePacket.queueName).ifPresentOrElse(queue -> {
                 queue.subscribe(connection.getClient());
                 connection.getClient().sendAcknowledgement(arg);
-            }, () -> {
-                connection.getClient().sendError(
-                        new ErrorPacket(ErrorType.QUEUE_NOT_FOUND, "Queue '" + queuePacket.queueName + "' was not found"),
-                        arg
-                );
-            });
+            }, () -> connection.getClient().sendError(
+                    new ErrorPacket(ErrorType.QUEUE_NOT_FOUND, "Queue '" + queuePacket.queueName + "' was not found"),
+                    arg
+            ));
         }
         if(payload instanceof QueueUnsubscribePacket queueUnsubscribePacket) {
             ExchangeRegistry.findQueue(queueUnsubscribePacket.queueName).ifPresentOrElse(queue -> {

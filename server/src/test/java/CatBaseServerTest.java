@@ -12,7 +12,7 @@ public class CatBaseServerTest {
     public void testServer() {
         CatBaseServer catBase = new CatBaseServer(8080);
 
-        ExchangeRegistry.register(new DirectExchange("nigga", List.of(new DefaultQueue(200, "kju"))));
+        ExchangeRegistry.register(new DirectExchange("exchange", List.of(new DefaultQueue(200, "queue"))));
 
         new Thread(() -> {
             try {

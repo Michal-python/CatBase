@@ -2,7 +2,7 @@ package cat.michal.catbase.server;
 
 import cat.michal.catbase.common.exception.CatBaseException;
 import cat.michal.catbase.common.model.CatBaseConnection;
-import cat.michal.catbase.server.data.ListKeeper;
+import cat.michal.catbase.common.data.ListKeeper;
 import cat.michal.catbase.server.event.EventDispatcher;
 import cat.michal.catbase.server.event.impl.ConnectionEstablishEvent;
 import cat.michal.catbase.server.procedure.ProcedureRegistry;
@@ -52,6 +52,9 @@ public class CatBaseServer implements BaseServer {
 
             if(connection != null) {
                 CatBaseConnection catBaseConnection = ProcedureRegistry.CONNECTION_ESTABLISHMENT_PROCEDURE.proceed(connection);
+                if (catBaseConnection == null) {
+                    return;
+                }
                 connections.add(catBaseConnection);
                 eventDispatcher.dispatch(new ConnectionEstablishEvent(catBaseConnection));
 

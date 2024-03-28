@@ -1,6 +1,6 @@
-package data.timed;
+package datatimed;
 
-import cat.michal.catbase.server.data.time.TimeSource;
+import cat.michal.catbase.common.data.time.TimeSource;
 
 public class MockTimeSource implements TimeSource {
 

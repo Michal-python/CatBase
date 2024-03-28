@@ -4,8 +4,10 @@ import cat.michal.catbase.common.message.Message;
 import cat.michal.catbase.common.packet.PacketType;
 import cat.michal.catbase.common.packet.clientBound.ErrorPacket;
 import cat.michal.catbase.common.packet.serverBound.AcknowledgementPacket;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectWriter;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.cbor.CBORFactory;
 import com.fasterxml.jackson.dataformat.cbor.databind.CBORMapper;
 import org.jetbrains.annotations.NotNull;
 
@@ -13,11 +15,31 @@ import java.io.IOException;
 import java.net.Socket;
 import java.util.UUID;
 
-public record CatBaseConnection(UUID id, Socket socket) {
-    private static final ThreadLocal<ObjectWriter> cborMapper = new ThreadLocal<>() {
+public class CatBaseConnection {
+
+    private final UUID id;
+    private final Socket socket;
+    private final JsonParser parser;
+
+    public CatBaseConnection(UUID id, Socket socket) throws IOException{
+        this.id = id;
+        this.socket = socket;
+        this.parser = cborFactory.get().createParser(socket.getInputStream());
+    }
+
+    private static final ThreadLocal<ObjectMapper> cborMapper = new ThreadLocal<>() {
         @Override
-        public ObjectWriter get() {
-            return new CBORMapper().writer();
+        public ObjectMapper get() {
+            return new CBORMapper();
+        }
+    };
+
+    private static final ThreadLocal<CBORFactory> cborFactory = new ThreadLocal<>() {
+        @Override
+        public CBORFactory get() {
+            var factory = new CBORFactory();
+            factory.disable(JsonParser.Feature.AUTO_CLOSE_SOURCE);
+            return factory;
         }
     };
 
@@ -47,16 +69,26 @@ public record CatBaseConnection(UUID id, Socket socket) {
         }
     }
 
+    public void close() throws IOException {
+        this.socket.close();
+        this.parser.close();
+    }
+
+    public synchronized Message readMessage() throws IOException {
+        return cborMapper.get().readValue(parser, Message.class);
+    }
+
+    public UUID getId() {
+        return id;
+    }
+
     public synchronized boolean sendPacket(Message packet) {
         return sendPacket(packet, socket);
     }
 
     public static synchronized boolean sendPacket(Message packet, Socket socket) {
         try {
-            byte[] payload = cborMapper.get().writeValueAsBytes(packet);
-            CommunicationHeader header = new CommunicationHeader(payload.length);
-            header.writeTo(socket.getOutputStream());
-            socket.getOutputStream().write(payload);
+            cborMapper.get().writeValue(socket.getOutputStream(), packet);
             return true;
         } catch (IOException ignored) {
             return false;

@@ -2,15 +2,16 @@ package cat.michal.catbase.client;
 
 import cat.michal.catbase.client.message.MessageHandler;
 import cat.michal.catbase.common.auth.AuthCredentials;
+import cat.michal.catbase.common.data.ListKeeper;
 import cat.michal.catbase.common.exception.CatBaseException;
 import cat.michal.catbase.common.message.Message;
+import cat.michal.catbase.common.model.CatBaseConnection;
 import cat.michal.catbase.common.packet.PacketType;
 import cat.michal.catbase.common.packet.serverBound.QueueSubscribePacket;
 import cat.michal.catbase.common.packet.serverBound.QueueUnsubscribePacket;
 
 import java.io.IOException;
 import java.net.Socket;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -20,7 +21,6 @@ public class CatBaseClient implements BaseClient {
     private final int awaitingQueueSize;
     private final AuthCredentials credentials;
     private final List<MessageHandler> handlers;
-    //TODO need thread for removing messages that haven't got a response
     private final List<ReceivedMessageHook> receivedResponses;
 
 
@@ -28,7 +28,7 @@ public class CatBaseClient implements BaseClient {
         this.credentials = credentials;
         this.handlers = handlers;
         this.awaitingQueueSize = awaitingQueueSize;
-        this.receivedResponses = new ArrayList<>();
+        this.receivedResponses = ListKeeper.getInstance().createDefaultTimeList();
     }
 
     public void registerHandler(MessageHandler messageHandler) {
@@ -44,7 +44,7 @@ public class CatBaseClient implements BaseClient {
         try(Socket socket = new Socket(addr, port)) {
             socket.setKeepAlive(true);
             socket.setReuseAddress(true);
-            this.socket = new CatBaseClientConnection(socket, new ArrayList<>(this.awaitingQueueSize));
+            this.socket = new CatBaseClientConnection(new CatBaseConnection(UUID.randomUUID(), socket), ListKeeper.getInstance().createDefaultTimeList());
 
             new Thread(new CatBaseClientCommunicationThread(this.socket, this.handlers, this.receivedResponses)).start();
             this.socket.sendPacket(new Message(

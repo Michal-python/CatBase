@@ -1,6 +1,6 @@
-package cat.michal.catbase.server.data;
+package cat.michal.catbase.common.data;
 
-import cat.michal.catbase.server.data.time.SystemNanoTimeSource;
+import cat.michal.catbase.common.data.time.SystemNanoTimeSource;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;

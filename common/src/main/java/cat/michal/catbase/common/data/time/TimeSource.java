@@ -1,4 +1,4 @@
-package cat.michal.catbase.server.data.time;
+package cat.michal.catbase.common.data.time;
 
 public interface TimeSource {
 

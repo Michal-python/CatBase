@@ -1,6 +1,6 @@
-package cat.michal.catbase.server.data;
+package cat.michal.catbase.common.data;
 
-import cat.michal.catbase.server.data.time.TimeSource;
+import cat.michal.catbase.common.data.time.TimeSource;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;

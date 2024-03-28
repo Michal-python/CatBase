@@ -21,26 +21,13 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 public class CatBaseServerCommunicationThread implements Runnable {
-    private static final CBORFactory cborFactory = new CBORFactory();
-    private static final ObjectMapper cborMapper = new ObjectMapper(cborFactory);
     private final CatBaseConnection client;
-    private final BufferedInputStream inputStream;
     private final EventDispatcher eventDispatcher;
-    private JsonParser parser;
     private volatile boolean verified = false;
-
-    static {
-        cborFactory.disable(JsonParser.Feature.AUTO_CLOSE_SOURCE);
-    }
 
     public CatBaseServerCommunicationThread(@NotNull CatBaseConnection client, EventDispatcher eventDispatcher) {
         this.client = client;
         this.eventDispatcher = eventDispatcher;
-        try {
-            this.inputStream = new BufferedInputStream(client.socket().getInputStream());
-        } catch (IOException e) {
-            throw new CatBaseException(e);
-        }
     }
 
     public CatBaseConnection getClient() {
@@ -53,8 +40,7 @@ public class CatBaseServerCommunicationThread implements Runnable {
 
     public void endConnection() {
         try {
-            client.socket().close();
-            parser.close();
+            client.close();
         } catch (IOException ignored) {
         }
         Thread.currentThread().interrupt();
@@ -72,22 +58,16 @@ public class CatBaseServerCommunicationThread implements Runnable {
             }
         }, 1001);
 
-        try {
-            parser = cborFactory.createParser(inputStream);
-        } catch (IOException e) {
-            endConnection();
-        }
-
         while (true) {
-            if (!readIncomingMessage(this.inputStream)) {
+            if (!readIncomingMessage()) {
                 return;
             }
         }
     }
 
-    public boolean readIncomingMessage(@NotNull InputStream inputStream) {
+    public boolean readIncomingMessage() {
         try {
-            Message message = cborMapper.readValue(parser, Message.class);
+            Message message = client.readMessage();
 
             if (ProcedureRegistry.INTERNAL_MESSAGE_PROCEDURE.proceed(message, this)) {
                 return false;

@@ -4,24 +4,18 @@ import cat.michal.catbase.client.message.AcknowledgementHandler;
 import cat.michal.catbase.client.message.ErrorPacketHandler;
 import cat.michal.catbase.client.message.MessageHandleResult;
 import cat.michal.catbase.client.message.MessageHandler;
-import cat.michal.catbase.common.LimitInputStream;
-import cat.michal.catbase.common.exception.CatBaseException;
 import cat.michal.catbase.common.message.Message;
-import cat.michal.catbase.common.model.CommunicationHeader;
 import cat.michal.catbase.common.packet.PacketType;
 import cat.michal.catbase.common.packet.serverBound.AcknowledgementPacket;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectReader;
-import com.fasterxml.jackson.dataformat.cbor.databind.CBORMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.BufferedInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.ByteBuffer;
 import java.util.List;
 
 public class CatBaseClientCommunicationThread implements Runnable {
-    private static final ObjectReader cborMapper = new CBORMapper().reader();
+    private static final Logger logger = LoggerFactory.getLogger(CatBaseClientCommunicationThread.class);
     private final CatBaseClientConnection socket;
     private final List<MessageHandler> handlers;
     private final AcknowledgementHandler acknowledgementHandler;
@@ -46,34 +40,16 @@ public class CatBaseClientCommunicationThread implements Runnable {
 
     @Override
     public void run() {
-        InputStream inputStream;
-        try {
-            inputStream = new BufferedInputStream(socket.socket().getInputStream());
-        } catch (IOException e) {
-            throw new CatBaseException(e);
-        }
         while (true) {
-            if(!readIncomingMessages(inputStream)) {
+            if(!readIncomingMessages()) {
                 return;
             }
         }
     }
 
-    private boolean readIncomingMessages(InputStream inputStream) {
+    private boolean readIncomingMessages() {
         try {
-            ByteBuffer buffer = ByteBuffer.wrap(inputStream.readNBytes(12));
-
-            CommunicationHeader communicationHeader = CommunicationHeader.create(buffer);
-
-            if(communicationHeader == null) {
-                endConnection();
-                return false;
-            }
-
-            Message message = cborMapper.readValue(
-                    new LimitInputStream(inputStream, communicationHeader.getLength()),
-                    Message.class
-            );
+            Message message = this.socket.socket().readMessage();
 
             if(acknowledgementHandler.handle(message).isShouldRespond()) {
                 return true;
@@ -86,10 +62,8 @@ public class CatBaseClientCommunicationThread implements Runnable {
             if(message.isResponse()) {
                 this.receivedResponses.stream()
                         .filter(response -> response.correlationId().equals(message.getCorrelationId()))
-                        .findAny().ifPresentOrElse(present -> {
-                            present.consumer().accept(message);
-                        }, () -> {
-                            //TODO error handling client didn't expect response but got it nevertheless lol
+                        .findAny().ifPresentOrElse(present -> present.consumer().accept(message), () -> {
+                            logger.warn("Didn't expect a response but got it nevertheless %s".formatted(message.getCorrelationId()));
                         });
                 return true;
             }
@@ -110,9 +84,8 @@ public class CatBaseClientCommunicationThread implements Runnable {
                             );
                         } else {
                             try {
-                                //TODO if result.isShouldRespond await for response but it is left for further consideration
                                 socket.sendPacket(new Message(
-                                        new AcknowledgementPacket(result.isShouldRespond()).serialize(),
+                                        new AcknowledgementPacket(false).serialize(),
                                         message.getCorrelationId(),
                                         PacketType.ACKNOWLEDGEMENT_PACKET.getId(),
                                         message.getRoutingKey(),

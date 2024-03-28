@@ -6,17 +6,15 @@ import cat.michal.catbase.common.data.ListKeeper;
 import cat.michal.catbase.server.event.EventDispatcher;
 import cat.michal.catbase.server.event.impl.ConnectionEstablishEvent;
 import cat.michal.catbase.server.procedure.ProcedureRegistry;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 
 public class CatBaseServer implements BaseServer {
-    private static final Logger logger = LoggerFactory.getLogger(CatBaseServer.class);
     private static final EventDispatcher eventDispatcher = new EventDispatcher();
     private volatile boolean running;
     private final int port;
@@ -79,8 +77,6 @@ public class CatBaseServer implements BaseServer {
             //general cleanup
             this.connections.clear();
             ListKeeper.getInstance().shutdown();
-
-            logger.info("Server stopped");
         } catch (IOException e) {
             throw new CatBaseException(e);
         }

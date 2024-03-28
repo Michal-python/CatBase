@@ -18,16 +18,14 @@ import java.util.concurrent.CompletableFuture;
 
 public class CatBaseClient implements BaseClient {
     private CatBaseClientConnection socket;
-    private final int awaitingQueueSize;
     private final AuthCredentials credentials;
     private final List<MessageHandler> handlers;
     private final List<ReceivedMessageHook> receivedResponses;
 
 
-    public CatBaseClient(AuthCredentials credentials, List<MessageHandler> handlers, int awaitingQueueSize) {
+    public CatBaseClient(AuthCredentials credentials, List<MessageHandler> handlers) {
         this.credentials = credentials;
         this.handlers = handlers;
-        this.awaitingQueueSize = awaitingQueueSize;
         this.receivedResponses = ListKeeper.getInstance().createDefaultTimeList();
     }
 
@@ -41,12 +39,14 @@ public class CatBaseClient implements BaseClient {
             throw new CatBaseException("Client is already connected");
         }
 
-        try(Socket socket = new Socket(addr, port)) {
+        try {
+            Socket socket = new Socket(addr, port);
             socket.setKeepAlive(true);
             socket.setReuseAddress(true);
             this.socket = new CatBaseClientConnection(new CatBaseConnection(UUID.randomUUID(), socket), ListKeeper.getInstance().createDefaultTimeList());
 
             new Thread(new CatBaseClientCommunicationThread(this.socket, this.handlers, this.receivedResponses)).start();
+
             this.socket.sendPacket(new Message(
                     credentials.wrapCredentials().serialize(),
                     UUID.randomUUID(),
@@ -67,6 +67,13 @@ public class CatBaseClient implements BaseClient {
         } catch (IOException e) {
             throw new CatBaseException(e);
         }
+    }
+
+    public boolean isConnected() {
+        if(socket == null) {
+            return false;
+        }
+        return this.socket.socket().getSocket().isConnected() && !this.socket.socket().getSocket().isClosed();
     }
 
     public boolean send(Message message) {

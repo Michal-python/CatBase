@@ -1,15 +1,22 @@
 import cat.michal.catbase.common.message.Message;
+import cat.michal.catbase.common.model.CatBaseConnection;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.cbor.CBORFactory;
 import com.fasterxml.jackson.dataformat.cbor.databind.CBORMapper;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -38,7 +45,52 @@ public class MessageExchangeTest {
         Message message4 = mapper.readValue(parser, Message.class);
         assertEquals(message1, message3);
         assertEquals(message2, message4);
+    }
 
+    private static ServerSocket serverSocket = null;
+    private static Socket clientSocket = null;
+    private static CatBaseConnection serverConn;
+    private static CatBaseConnection clientConn;
+    private static int port;
+    private static CountDownLatch countDownLatch = new CountDownLatch(1);
+
+    @BeforeAll
+    public static void setup() throws IOException, InterruptedException {
+        serverSocket = new ServerSocket();
+        serverSocket.bind(new InetSocketAddress("localhost", 0));
+        port = serverSocket.getLocalPort();
+        Thread serverThread = new Thread(() -> {
+            try {
+                countDownLatch.countDown();
+                Socket serverSocketConnection = serverSocket.accept();
+                serverConn = new CatBaseConnection(UUID.randomUUID(), serverSocketConnection);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+        serverThread.start();
+
+        countDownLatch.await();
+        clientSocket = new Socket("localhost", port);
+        clientConn = new CatBaseConnection(UUID.randomUUID(), clientSocket);
+    }
+
+    @AfterAll
+    public static void teardown() throws IOException {
+        serverSocket.close();
+        clientSocket.close();
+        clientConn.close();
+        serverConn.close();
+    }
+
+    @Test
+    public void testTransportProtocol() throws IOException {
+        Message message = new Message("Goodbye World!".getBytes(), UUID.randomUUID(), 0, "key", "queue");
+
+        clientConn.sendPacket(message);
+        Message received = serverConn.readMessage();
+
+        assertEquals(message, received);
     }
 
 }

@@ -7,6 +7,11 @@ public class PasswordCredentials implements AuthCredentials {
     public String login;
     public String password;
 
+
+    public PasswordCredentials(String login, String password) {
+        this.login = login;
+        this.password = password;
+    }
     @Override
     public AuthorizationPacket wrapCredentials() {
         return new HandshakePacket(login, password);

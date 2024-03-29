@@ -67,9 +67,6 @@ public class CatBaseServerCommunicationThread implements Runnable {
             if (ProcedureRegistry.INTERNAL_MESSAGE_PROCEDURE.proceed(message, this)) {
                 return false;
             }
-            if (message.getPacketId() == PacketType.HANDSHAKE.getId()) {
-                return true;
-            }
 
             Exchange exchange = ProcedureRegistry.EXCHANGE_DETERMINE_PROCEDURE.proceed(message);
 

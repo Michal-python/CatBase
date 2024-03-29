@@ -34,6 +34,7 @@ public class InternalMessageProcedure implements BiProcedure<Boolean, Message, C
             }
 
             connection.verify();
+            return true;
         }
         if(payload instanceof QueueSubscribePacket queuePacket) {
             ExchangeRegistry.findQueue(queuePacket.queueName).ifPresentOrElse(queue -> {
@@ -43,6 +44,7 @@ public class InternalMessageProcedure implements BiProcedure<Boolean, Message, C
                     new ErrorPacket(ErrorType.QUEUE_NOT_FOUND, "Queue '" + queuePacket.queueName + "' was not found"),
                     arg
             ));
+            return true;
         }
         if(payload instanceof QueueUnsubscribePacket queueUnsubscribePacket) {
             ExchangeRegistry.findQueue(queueUnsubscribePacket.queueName).ifPresentOrElse(queue -> {
@@ -52,6 +54,7 @@ public class InternalMessageProcedure implements BiProcedure<Boolean, Message, C
                     new ErrorPacket(ErrorType.QUEUE_NOT_FOUND, "Queue '" + queueUnsubscribePacket.queueName + "' was not found"),
                     arg
             ));
+            return true;
         }
         return false;
     }

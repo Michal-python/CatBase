@@ -12,6 +12,7 @@ import cat.michal.catbase.common.packet.serverBound.QueueUnsubscribePacket;
 
 import java.io.IOException;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -25,7 +26,7 @@ public class CatBaseClient implements BaseClient {
 
     public CatBaseClient(AuthCredentials credentials, List<MessageHandler> handlers) {
         this.credentials = credentials;
-        this.handlers = handlers;
+        this.handlers = new ArrayList<>(handlers);
         this.receivedResponses = ListKeeper.getInstance().createDefaultTimeList();
     }
 

@@ -51,14 +51,13 @@ public class MessageExchangeTest {
     private static Socket clientSocket = null;
     private static CatBaseConnection serverConn;
     private static CatBaseConnection clientConn;
-    private static int port;
-    private static CountDownLatch countDownLatch = new CountDownLatch(1);
+    private static final CountDownLatch countDownLatch = new CountDownLatch(1);
 
     @BeforeAll
     public static void setup() throws IOException, InterruptedException {
         serverSocket = new ServerSocket();
         serverSocket.bind(new InetSocketAddress("localhost", 0));
-        port = serverSocket.getLocalPort();
+        int port = serverSocket.getLocalPort();
         Thread serverThread = new Thread(() -> {
             try {
                 countDownLatch.countDown();
@@ -72,6 +71,8 @@ public class MessageExchangeTest {
 
         countDownLatch.await();
         clientSocket = new Socket("localhost", port);
+        clientSocket.setKeepAlive(true);
+        clientSocket.setReuseAddress(true);
         clientConn = new CatBaseConnection(UUID.randomUUID(), clientSocket);
     }
 
@@ -84,13 +85,23 @@ public class MessageExchangeTest {
     }
 
     @Test
-    public void testTransportProtocol() throws IOException {
+    public void testTransportProtocol() throws IOException, InterruptedException {
         Message message = new Message("Goodbye World!".getBytes(), UUID.randomUUID(), 0, "key", "queue");
 
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+        new Thread(() -> {
+            try {
+                countDownLatch.countDown();
+                clientConn.readMessage();
+            } catch (IOException ignored) {}
+        }).start();
+
+        countDownLatch.await();
         clientConn.sendPacket(message);
         Message received = serverConn.readMessage();
 
         assertEquals(message, received);
+        assertEquals("Goodbye World!", new String(received.getPayload()));
     }
 
 }

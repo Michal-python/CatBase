@@ -73,7 +73,7 @@ public class CatBaseClient implements BaseClient {
         if(socket == null) {
             return false;
         }
-        return this.socket.socket().getSocket().isConnected() && !this.socket.socket().getSocket().isClosed();
+        return this.socket.socket().isOpen();
     }
 
     public boolean send(Message message) {

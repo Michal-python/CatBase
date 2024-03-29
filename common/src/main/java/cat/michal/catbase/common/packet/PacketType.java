@@ -27,7 +27,7 @@ public enum PacketType {
     public static @NotNull Optional<PacketType> findType(long id) {
         return Arrays.stream(values())
                 .filter(type -> type.getId() == id)
-                .findAny();
+                .findFirst();
     }
 
     public Class<? extends SerializablePayload> getClazz() {

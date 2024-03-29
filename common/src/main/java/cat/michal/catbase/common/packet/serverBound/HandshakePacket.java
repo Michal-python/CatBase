@@ -9,4 +9,9 @@ public class HandshakePacket implements AuthorizationPacket {
         this.login = login;
         this.password = password;
     }
+
+    /**
+     * Needed for CBOR
+     */
+    public HandshakePacket() {}
 }

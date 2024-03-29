@@ -4,6 +4,7 @@ import cat.michal.catbase.common.message.Message;
 import cat.michal.catbase.common.packet.PacketType;
 import cat.michal.catbase.common.packet.clientBound.ErrorPacket;
 import cat.michal.catbase.common.packet.serverBound.AcknowledgementPacket;
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,12 +14,16 @@ import org.jetbrains.annotations.NotNull;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.UUID;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class CatBaseConnection {
 
     private final UUID id;
     private final Socket socket;
     private JsonParser parser;
+
+    private final ReentrantLock writeLock = new ReentrantLock();
+    private final ReentrantLock readLock = new ReentrantLock();
 
     public CatBaseConnection(UUID id, Socket socket) throws IOException {
         this.id = id;
@@ -37,9 +42,11 @@ public class CatBaseConnection {
         public CBORFactory get() {
             var factory = new CBORFactory();
             factory.disable(JsonParser.Feature.AUTO_CLOSE_SOURCE);
+            factory.disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET);
             return factory;
         }
     };
+
 
     public void sendError(@NotNull ErrorPacket error, Message reference) {
         try {
@@ -78,23 +85,31 @@ public class CatBaseConnection {
         }
     }
 
-    public synchronized Message readMessage() throws IOException {
-        if (parser == null) {
-            this.parser = cborFactory.get().createParser(socket.getInputStream());
+    public Message readMessage() throws IOException {
+        try {
+            readLock.lock();
+            if (parser == null) {
+                this.parser = cborFactory.get().createParser(socket.getInputStream());
+            }
+            return cborMapper.get().readValue(parser, Message.class);
+        } finally {
+            readLock.unlock();
         }
-        return cborMapper.get().readValue(parser, Message.class);
     }
 
     public UUID getId() {
         return id;
     }
 
-    public synchronized boolean sendPacket(Message packet) {
+    public boolean sendPacket(Message packet) {
         try {
+            writeLock.lock();
             cborMapper.get().writeValue(socket.getOutputStream(), packet);
             return true;
         } catch (IOException ignored) {
             return false;
+        } finally {
+            writeLock.unlock();
         }
     }
 

@@ -1,22 +1,17 @@
 package cat.michal.catbase.server;
 
-import cat.michal.catbase.common.exception.CatBaseException;
 import cat.michal.catbase.common.message.Message;
 import cat.michal.catbase.common.model.CatBaseConnection;
 import cat.michal.catbase.common.packet.ErrorType;
+import cat.michal.catbase.common.packet.PacketType;
 import cat.michal.catbase.common.packet.clientBound.ErrorPacket;
 import cat.michal.catbase.server.event.EventDispatcher;
 import cat.michal.catbase.server.event.impl.ConnectionEndEvent;
 import cat.michal.catbase.server.exchange.Exchange;
 import cat.michal.catbase.server.procedure.ProcedureRegistry;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.cbor.CBORFactory;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.BufferedInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -71,6 +66,9 @@ public class CatBaseServerCommunicationThread implements Runnable {
 
             if (ProcedureRegistry.INTERNAL_MESSAGE_PROCEDURE.proceed(message, this)) {
                 return false;
+            }
+            if (message.getPacketId() == PacketType.HANDSHAKE.getId()) {
+                return true;
             }
 
             Exchange exchange = ProcedureRegistry.EXCHANGE_DETERMINE_PROCEDURE.proceed(message);

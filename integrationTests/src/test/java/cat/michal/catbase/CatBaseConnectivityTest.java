@@ -18,8 +18,7 @@ public class CatBaseConnectivityTest {
         UserRegistry.registerUser("user", "password");
         new Thread(server::startServer,"Server-Thread").start();
         Thread.sleep(600);
-        client = new CatBaseClient(new PasswordCredentials("user", "passwosrd"), List.of());
-        client.connect("127.0.0.1", 8000);
+        client = new CatBaseClient(new PasswordCredentials("user", "password"), List.of());
     }
 
 
@@ -31,6 +30,7 @@ public class CatBaseConnectivityTest {
 
     @Test
     void testSimpleConnection() {
+        client.connect("127.0.0.1", 8000);
         try {
             Thread.sleep(1500);
         } catch (InterruptedException ignored) {

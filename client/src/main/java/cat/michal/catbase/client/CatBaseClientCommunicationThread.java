@@ -4,9 +4,11 @@ import cat.michal.catbase.client.message.AcknowledgementHandler;
 import cat.michal.catbase.client.message.ErrorPacketHandler;
 import cat.michal.catbase.client.message.MessageHandleResult;
 import cat.michal.catbase.client.message.MessageHandler;
+import cat.michal.catbase.common.converter.AbstractMessageConverter;
 import cat.michal.catbase.common.message.Message;
 import cat.michal.catbase.common.packet.PacketType;
 import cat.michal.catbase.common.packet.serverBound.AcknowledgementPacket;
+import cat.michal.catbase.common.packet.serverBound.ErrorAcknowledgementPacket;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,20 +16,23 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.List;
 
-public class CatBaseClientCommunicationThread implements Runnable {
+public class CatBaseClientCommunicationThread<T> implements Runnable {
     private static final Logger logger = LoggerFactory.getLogger(CatBaseClientCommunicationThread.class);
     private final CatBaseClientConnection socket;
-    private final List<MessageHandler> handlers;
+    private final List<MessageHandler<T>> handlers;
     private final AcknowledgementHandler acknowledgementHandler;
     private final ErrorPacketHandler errorPacketHandler;
     private final List<ReceivedHook<Message>> receivedResponses;
+    private final AbstractMessageConverter<T> converter;
 
-    public CatBaseClientCommunicationThread(CatBaseClientConnection socket, List<MessageHandler> handlers, List<ReceivedHook<Message>> receivedResponses, CatBaseClient client) {
+    @SuppressWarnings("unchecked")
+    public CatBaseClientCommunicationThread(CatBaseClientConnection socket, List<MessageHandler<T>> handlers, List<ReceivedHook<Message>> receivedResponses, CatBaseClient client) {
         this.socket = socket;
         this.handlers = handlers;
         this.acknowledgementHandler = new AcknowledgementHandler(socket, client);
         this.errorPacketHandler = new ErrorPacketHandler(client);
         this.receivedResponses = receivedResponses;
+        this.converter = client.getConverter();
     }
 
     public void endConnection() {
@@ -54,11 +59,11 @@ public class CatBaseClientCommunicationThread implements Runnable {
 
             logger.debug("Client received packet " + message);
 
-            if(acknowledgementHandler.handle(message).isShouldRespond()) {
+            if(acknowledgementHandler.handle(message, null).isShouldRespond()) {
                 return true;
             }
 
-            if(errorPacketHandler.handle(message).isShouldRespond()) {
+            if(errorPacketHandler.handle(message, null).isShouldRespond()) {
                 return true;
             }
 
@@ -70,9 +75,25 @@ public class CatBaseClientCommunicationThread implements Runnable {
             }
 
             handlers.stream()
-                    .filter(handler -> handler.regardingPacketId() == message.getPacketId())
+                    .filter(handler -> handler.regardingPacketId() == message.getPacketId()
+            && (handler.queue() == null || handler.queue().equals(message.getOriginQueue())))
                     .forEach(handler -> {
-                        MessageHandleResult result = handler.handle(message);
+                        MessageHandleResult result;
+                        try {
+                            result = handler.handle(message, converter.decode(message.getPayload()));
+                        } catch (Exception e) {
+                            try {
+                                socket.socket().sendPacket(new Message(
+                                        new ErrorAcknowledgementPacket().serialize(),
+                                        message.getCorrelationId(),
+                                        PacketType.ERROR_ACKNOWLEDGEMENT_PACKET.getId(),
+                                        message.getRoutingKey(),
+                                        message.getExchangeName()
+                                ));
+                            } catch (JsonProcessingException ignored) {
+                            }
+                            return;
+                        }
                         if(result != null && result.isResponse()) {
                             socket.sendPacket(
                                     new Message(

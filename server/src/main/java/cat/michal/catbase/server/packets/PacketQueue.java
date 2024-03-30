@@ -118,6 +118,7 @@ public abstract class PacketQueue {
     }
 
     private boolean sendPacket(CatBaseConnection connection, Message packet) {
+        packet.setOriginQueue(this.name);
         sentPackets.add(new SentMessage(packet, new WeakReference<>(connection)));
         return connection.sendPacket(packet);
     }

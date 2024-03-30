@@ -7,7 +7,7 @@ import cat.michal.catbase.common.packet.clientBound.ErrorPacket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ErrorPacketHandler implements MessageHandler {
+public class ErrorPacketHandler extends MessageHandler<Object> {
     private static final Logger logger = LoggerFactory.getLogger(ErrorPacketHandler.class);
     private final CatBaseClient client;
 
@@ -16,7 +16,7 @@ public class ErrorPacketHandler implements MessageHandler {
     }
 
     @Override
-    public MessageHandleResult handle(Message message) {
+    public MessageHandleResult handle(Message message, Object ignored) {
         SerializablePayload payload = message.deserializePayload();
         if(payload instanceof ErrorPacket errorPacket) {
             logger.debug("Got error packet from CID: %s (%s, %s)".formatted(

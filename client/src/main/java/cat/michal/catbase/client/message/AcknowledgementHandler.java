@@ -6,7 +6,7 @@ import cat.michal.catbase.common.message.Message;
 import cat.michal.catbase.common.packet.SerializablePayload;
 import cat.michal.catbase.common.packet.serverBound.AcknowledgementPacket;
 
-public class AcknowledgementHandler implements MessageHandler {
+public class AcknowledgementHandler extends MessageHandler<Object> {
     private final CatBaseClientConnection clientConnection;
     private final CatBaseClient client;
 
@@ -16,7 +16,7 @@ public class AcknowledgementHandler implements MessageHandler {
     }
 
     @Override
-    public MessageHandleResult handle(Message message) {
+    public MessageHandleResult handle(Message message, Object ignored) {
         SerializablePayload payload = message.deserializePayload();
         if(payload instanceof AcknowledgementPacket) {
             clientConnection.awaitingForAck().removeIf(ack -> ack.equals(message.getCorrelationId()));

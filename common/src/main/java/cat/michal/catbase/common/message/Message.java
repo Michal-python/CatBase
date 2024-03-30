@@ -11,6 +11,9 @@ import java.util.*;
 
 @SuppressWarnings("unused")
 public final class Message {
+
+    public static final long USER_MESSAGE_ID = 0b0000111100001111000011110000111100001111000011110000111100001111L;
+
     private static final ObjectReader cborMapper = new CBORMapper().reader();
     private byte[] payload;
     private UUID correlationId;
@@ -30,6 +33,10 @@ public final class Message {
      * Needed for cbor
      */
     public Message() {}
+
+    public Message(byte[] payload, String routingKey, String exchangeName) {
+        this(payload, UUID.randomUUID(), USER_MESSAGE_ID, routingKey, exchangeName);
+    }
 
     public Message(byte[] payload, UUID correlationId, long packetId, String routingKey, String exchangeName) {
         this.payload = payload;
@@ -86,6 +93,10 @@ public final class Message {
 
     public String getOriginQueue() {
         return originQueue;
+    }
+
+    public Map<String, Object> getHeaders() {
+        return headers;
     }
 
     public SerializablePayload deserializePayload() {

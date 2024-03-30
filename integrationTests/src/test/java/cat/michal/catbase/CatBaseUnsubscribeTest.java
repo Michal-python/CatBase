@@ -61,9 +61,10 @@ public class CatBaseUnsubscribeTest {
 
         AtomicInteger received = new AtomicInteger();
 
-        receiver.registerHandler(new MessageHandler() {
+        receiver.registerHandler(new MessageHandler<>() {
+
             @Override
-            public MessageHandleResult handle(Message message) {
+            public MessageHandleResult handle(Message message, Object payload) {
                 received.incrementAndGet();
                 return MessageHandleResult.shouldRespond(false);
             }

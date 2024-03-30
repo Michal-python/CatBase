@@ -9,10 +9,10 @@ import java.util.UUID;
 
 public record CatBaseClientConnection(CatBaseConnection socket, List<UUID> awaitingForAck) {
 
-    public boolean sendPacket(@NotNull Message message) {
-        if(message.getPacketId() < 6 && message.getPacketId() > 0) {
+    public void sendPacket(@NotNull Message message) {
+        if(message.getPacketId() < 7 && message.getPacketId() > 0) {
             awaitingForAck.add(message.getCorrelationId());
         }
-        return socket.sendPacket(message);
+        socket.sendPacket(message);
     }
 }

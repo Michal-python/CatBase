@@ -62,9 +62,9 @@ public class CatBaseMessagingTest {
 
         AtomicBoolean passed = new AtomicBoolean();
 
-        receiver.registerHandler(new MessageHandler() {
+        receiver.registerHandler(new MessageHandler<>() {
             @Override
-            public MessageHandleResult handle(Message message) {
+            public MessageHandleResult handle(Message message, Object payload) {
                 passed.set(message.getPayload()[0] == 101);
                 return null;
             }

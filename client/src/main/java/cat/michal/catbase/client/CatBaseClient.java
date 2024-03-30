@@ -2,6 +2,8 @@ package cat.michal.catbase.client;
 
 import cat.michal.catbase.client.message.MessageHandler;
 import cat.michal.catbase.common.auth.AuthCredentials;
+import cat.michal.catbase.common.converter.AbstractMessageConverter;
+import cat.michal.catbase.common.converter.DefaultMessageConverter;
 import cat.michal.catbase.common.data.ListKeeper;
 import cat.michal.catbase.common.exception.CatBaseException;
 import cat.michal.catbase.common.message.Message;
@@ -27,13 +29,19 @@ public class CatBaseClient implements BaseClient {
     private final List<MessageHandler> handlers;
     private final List<ReceivedHook<Message>> receivedResponses;
     private final List<ReceivedHook<ErrorPacket>> receivedAcknowledgements;
+    private final AbstractMessageConverter abstractMessageConverter;
     private static final AtomicInteger threadId = new AtomicInteger(0);
 
-    public CatBaseClient(AuthCredentials credentials, List<MessageHandler> handlers) {
+    public <T> CatBaseClient(AuthCredentials credentials, List<MessageHandler> handlers) {
+        this(credentials, handlers, new DefaultMessageConverter());
+    }
+
+    public <T> CatBaseClient(AuthCredentials credentials, List<MessageHandler> handlers, AbstractMessageConverter<T> abstractMessageConverter) {
         this.credentials = credentials;
         this.handlers = new ArrayList<>(handlers);
         this.receivedResponses = ListKeeper.getInstance().createDefaultTimeList();
         this.receivedAcknowledgements = ListKeeper.getInstance().createDefaultTimeList();
+        this.abstractMessageConverter = abstractMessageConverter;
     }
 
     public void registerHandler(MessageHandler messageHandler) {
@@ -92,8 +100,8 @@ public class CatBaseClient implements BaseClient {
         return this.socket.socket().isOpen();
     }
 
-    public void send(Message message) {
-        this.socket.sendPacket(message);
+    public AbstractMessageConverter getConverter() {
+        return abstractMessageConverter;
     }
 
     public boolean subscribe(String queueName) {
@@ -126,7 +134,7 @@ public class CatBaseClient implements BaseClient {
         }
     }
 
-    public CompletableFuture<ErrorPacket> sendAndReceiveAck(Message message) {
+    CompletableFuture<ErrorPacket> sendAndReceiveAck(Message message) {
         CompletableFuture<ErrorPacket> future = new CompletableFuture<>();
         UUID hookId = UUID.randomUUID();
 
@@ -137,6 +145,45 @@ public class CatBaseClient implements BaseClient {
 
         socket.sendPacket(message);
 
+        return future;
+    }
+
+    public void send(Message message) {
+        this.socket.sendPacket(message);
+    }
+
+    public <T> void convertAndSend(T message, String exchangeName, String routingKey) {
+        try {
+            this.socket.sendPacket(new Message(
+                    abstractMessageConverter.encode(message),
+                    routingKey,
+                    exchangeName
+            ));
+        } catch (Exception e) {
+            throw new CatBaseException(e);
+        }
+    }
+
+    public <T> CompletableFuture<Message> convertSendAndReceive(T message, String exchangeName, String routingKey) {
+        CompletableFuture<Message> future = new CompletableFuture<>();
+        UUID hookId = UUID.randomUUID();
+        Message newMessage = null;
+        try {
+            newMessage = new Message(
+                    abstractMessageConverter.encode(message),
+                    routingKey,
+                    exchangeName
+            );
+        } catch (Exception e) {
+            throw new CatBaseException(e);
+        }
+
+        this.receivedResponses.add(new ReceivedHook<>(hookId, newMessage.getCorrelationId(), msg -> {
+            this.receivedResponses.removeIf(responseElement -> responseElement.id().equals(hookId));
+            future.complete(msg);
+        }));
+
+        socket.sendPacket(newMessage);
         return future;
     }
 

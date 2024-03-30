@@ -20,13 +20,13 @@ public class CatBaseClientCommunicationThread implements Runnable {
     private final List<MessageHandler> handlers;
     private final AcknowledgementHandler acknowledgementHandler;
     private final ErrorPacketHandler errorPacketHandler;
-    private final List<ReceivedMessageHook> receivedResponses;
+    private final List<ReceivedHook<Message>> receivedResponses;
 
-    public CatBaseClientCommunicationThread(CatBaseClientConnection socket, List<MessageHandler> handlers, List<ReceivedMessageHook> receivedResponses) {
+    public CatBaseClientCommunicationThread(CatBaseClientConnection socket, List<MessageHandler> handlers, List<ReceivedHook<Message>> receivedResponses, CatBaseClient client) {
         this.socket = socket;
         this.handlers = handlers;
-        this.acknowledgementHandler = new AcknowledgementHandler(socket);
-        this.errorPacketHandler = new ErrorPacketHandler();
+        this.acknowledgementHandler = new AcknowledgementHandler(socket, client);
+        this.errorPacketHandler = new ErrorPacketHandler(client);
         this.receivedResponses = receivedResponses;
     }
 

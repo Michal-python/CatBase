@@ -10,12 +10,15 @@ import cat.michal.catbase.server.event.impl.ConnectionEndEvent;
 import cat.michal.catbase.server.exchange.Exchange;
 import cat.michal.catbase.server.procedure.ProcedureRegistry;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Timer;
 import java.util.TimerTask;
 
 public class CatBaseServerCommunicationThread implements Runnable {
+    private static final Logger logger = LoggerFactory.getLogger(CatBaseServerCommunicationThread.class);
     private final CatBaseConnection client;
     private final EventDispatcher eventDispatcher;
     private volatile boolean verified = false;
@@ -64,6 +67,8 @@ public class CatBaseServerCommunicationThread implements Runnable {
         try {
             Message message = client.readMessage();
 
+            logger.debug("Packet received " + message.toString() + " from client " + client.getId());
+
             if (ProcedureRegistry.INTERNAL_MESSAGE_PROCEDURE.proceed(message, this)) {
                 return false;
             }
@@ -86,6 +91,7 @@ public class CatBaseServerCommunicationThread implements Runnable {
             }
         } catch (IOException exception) {
             endConnection();
+            logger.debug("Exception from client " + client.getId() + " ", exception);
             return false;
         }
 

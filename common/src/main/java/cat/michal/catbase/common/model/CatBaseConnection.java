@@ -10,6 +10,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.cbor.CBORFactory;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.Socket;
@@ -36,6 +38,8 @@ public class CatBaseConnection {
             return new ObjectMapper(cborFactory.get());
         }
     };
+
+    private static final Logger logger = LoggerFactory.getLogger(CatBaseConnection.class);
 
     private static final ThreadLocal<CBORFactory> cborFactory = new ThreadLocal<>() {
         @Override
@@ -105,8 +109,10 @@ public class CatBaseConnection {
         try {
             writeLock.lock();
             cborMapper.get().writeValue(socket.getOutputStream(), packet);
+            logger.debug("Packet sent " + packet.toString());
             return true;
-        } catch (IOException ignored) {
+        } catch (IOException exception) {
+            logger.debug("Got exception while sending packet ", exception);
             return false;
         } finally {
             writeLock.unlock();

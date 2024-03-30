@@ -115,4 +115,13 @@ public final class Message {
         result = 31 * result + Arrays.hashCode(payload);
         return result;
     }
+
+    @Override
+    public String toString() {
+        return String.format("M{id=%s correlationId=%s payload=\"%s\"}",
+                PacketType.findType(this.packetId).map(String::valueOf).orElseGet(() -> String.valueOf(this.packetId)),
+                this.correlationId.toString(),
+                new String(this.payload)
+        );
+    }
 }

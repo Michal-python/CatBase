@@ -11,10 +11,14 @@ import cat.michal.catbase.server.CatBaseServerCommunicationThread;
 import cat.michal.catbase.server.auth.User;
 import cat.michal.catbase.server.auth.UserRegistry;
 import cat.michal.catbase.server.exchange.ExchangeRegistry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 
 public class InternalMessageProcedure implements BiProcedure<Boolean, Message, CatBaseServerCommunicationThread> {
+    private static final Logger logger = LoggerFactory.getLogger(InternalMessageProcedure.class);
+
     @Override
     public Boolean proceed(Message arg, CatBaseServerCommunicationThread connection) {
         SerializablePayload payload = arg.deserializePayload();
@@ -29,10 +33,12 @@ public class InternalMessageProcedure implements BiProcedure<Boolean, Message, C
             User user = userOptional.get();
 
             if(!UserRegistry.encodePassword(handshakePacket.password).equals(user.password())) {
+                logger.debug("Failed to authenticate " + connection.getClient().getId());
                 connection.endConnection();
                 return true;
             }
 
+            logger.debug("Authenticated " + connection.getClient().getId());
             connection.verify();
             return true;
         }

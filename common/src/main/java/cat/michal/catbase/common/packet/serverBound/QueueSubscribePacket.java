@@ -8,4 +8,7 @@ public class QueueSubscribePacket implements SerializablePayload {
     public QueueSubscribePacket(String queueName) {
         this.queueName = queueName;
     }
+
+    @SuppressWarnings("unused")
+    public QueueSubscribePacket() {}
 }

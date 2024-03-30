@@ -1,8 +1,8 @@
 package cat.michal.catbase.common.packet;
 
 import cat.michal.catbase.common.packet.clientBound.ErrorPacket;
-import cat.michal.catbase.common.packet.serverBound.HandshakePacket;
 import cat.michal.catbase.common.packet.serverBound.AcknowledgementPacket;
+import cat.michal.catbase.common.packet.serverBound.HandshakePacket;
 import cat.michal.catbase.common.packet.serverBound.QueueSubscribePacket;
 import cat.michal.catbase.common.packet.serverBound.QueueUnsubscribePacket;
 import org.jetbrains.annotations.NotNull;

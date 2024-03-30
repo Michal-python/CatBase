@@ -51,6 +51,8 @@ public class CatBaseClientCommunicationThread implements Runnable {
         try {
             Message message = this.socket.socket().readMessage();
 
+            logger.debug("Client received packet " + message);
+
             if(acknowledgementHandler.handle(message).isShouldRespond()) {
                 return true;
             }
@@ -62,9 +64,7 @@ public class CatBaseClientCommunicationThread implements Runnable {
             if(message.isResponse()) {
                 this.receivedResponses.stream()
                         .filter(response -> response.correlationId().equals(message.getCorrelationId()))
-                        .findAny().ifPresentOrElse(present -> present.consumer().accept(message), () -> {
-                            logger.warn("Didn't expect a response but got it nevertheless %s".formatted(message.getCorrelationId()));
-                        });
+                        .findAny().ifPresentOrElse(present -> present.consumer().accept(message), () -> logger.warn("Didn't expect a response but got it nevertheless %s".formatted(message.getCorrelationId())));
                 return true;
             }
 

@@ -3,7 +3,6 @@ package cat.michal.catbase.server;
 import cat.michal.catbase.common.message.Message;
 import cat.michal.catbase.common.model.CatBaseConnection;
 import cat.michal.catbase.common.packet.ErrorType;
-import cat.michal.catbase.common.packet.PacketType;
 import cat.michal.catbase.common.packet.clientBound.ErrorPacket;
 import cat.michal.catbase.server.event.EventDispatcher;
 import cat.michal.catbase.server.event.impl.ConnectionEndEvent;
@@ -58,19 +57,30 @@ public class CatBaseServerCommunicationThread implements Runnable {
 
         while (true) {
             if (!readIncomingMessage()) {
+                logger.debug("Comm with client ended " + client.getId() + " ");
                 return;
             }
         }
     }
 
     public boolean readIncomingMessage() {
+        if (!client.isOpen()) {
+            return false;
+        }
+
         try {
             Message message = client.readMessage();
 
             logger.debug("Packet received " + message.toString() + " from client " + client.getId());
 
-            if (ProcedureRegistry.INTERNAL_MESSAGE_PROCEDURE.proceed(message, this)) {
-                return false;
+            switch (ProcedureRegistry.INTERNAL_MESSAGE_PROCEDURE.proceed(message, this)) {
+                case CONTINUE -> { }
+                case DO_NOT_CONTINUE -> {
+                    return true;
+                }
+                case AUTH_ERROR -> {
+                    return false;
+                }
             }
 
             Exchange exchange = ProcedureRegistry.EXCHANGE_DETERMINE_PROCEDURE.proceed(message);

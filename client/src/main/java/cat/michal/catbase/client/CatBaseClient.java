@@ -18,14 +18,16 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 
+@SuppressWarnings("all")
 public class CatBaseClient implements BaseClient {
     private CatBaseClientConnection socket;
     private final AuthCredentials credentials;
     private final List<MessageHandler> handlers;
     private final List<ReceivedHook<Message>> receivedResponses;
     private final List<ReceivedHook<ErrorPacket>> receivedAcknowledgements;
-
+    private static final AtomicInteger threadId = new AtomicInteger(0);
 
     public CatBaseClient(AuthCredentials credentials, List<MessageHandler> handlers) {
         this.credentials = credentials;
@@ -50,7 +52,7 @@ public class CatBaseClient implements BaseClient {
             socket.setReuseAddress(true);
             this.socket = new CatBaseClientConnection(new CatBaseConnection(UUID.randomUUID(), socket), ListKeeper.getInstance().createDefaultTimeList());
 
-            new Thread(new CatBaseClientCommunicationThread(this.socket, this.handlers, this.receivedResponses, this)).start();
+            new Thread(new CatBaseClientCommunicationThread(this.socket, this.handlers, this.receivedResponses, this), "Client-Thread-" + threadId.incrementAndGet()).start();
 
             UUID authPacketId = UUID.randomUUID();
 
@@ -96,13 +98,13 @@ public class CatBaseClient implements BaseClient {
 
     public boolean subscribe(String queueName) {
         try {
-            this.socket.sendPacket(new Message(
+            sendAndReceiveAck(new Message(
                     new QueueSubscribePacket(queueName).serialize(),
                     UUID.randomUUID(),
                     PacketType.SUBSCRIBE.getId(),
                     null,
                     null
-            ));
+            )).get();
             return true;
         } catch (Exception e) {
             return false;
@@ -111,13 +113,13 @@ public class CatBaseClient implements BaseClient {
 
     public boolean unsubscribe(String queueName) {
         try {
-            this.socket.sendPacket(new Message(
+            sendAndReceive(new Message(
                     new QueueUnsubscribePacket(queueName).serialize(),
                     UUID.randomUUID(),
                     PacketType.UNSUBSCRIBE.getId(),
                     null,
                     null
-            ));
+            )).get();
             return true;
         } catch (Exception e) {
             return false;

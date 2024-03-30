@@ -6,4 +6,7 @@ import java.util.UUID;
 
 public class ErrorAcknowledgementPacket implements SerializablePayload {
     public UUID correlationId;
+
+    @SuppressWarnings("unused")
+    public ErrorAcknowledgementPacket() {}
 }

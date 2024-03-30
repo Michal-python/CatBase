@@ -1,5 +1,7 @@
 package cat.michal.catbase.server.packets;
 
+import cat.michal.catbase.common.data.ListKeeper;
+import cat.michal.catbase.common.data.TimedList;
 import cat.michal.catbase.common.message.Message;
 import cat.michal.catbase.common.model.CatBaseConnection;
 import cat.michal.catbase.common.packet.ErrorType;
@@ -7,8 +9,6 @@ import cat.michal.catbase.common.packet.SerializablePayload;
 import cat.michal.catbase.common.packet.clientBound.ErrorPacket;
 import cat.michal.catbase.common.packet.serverBound.AcknowledgementPacket;
 import cat.michal.catbase.common.packet.serverBound.ErrorAcknowledgementPacket;
-import cat.michal.catbase.common.data.ListKeeper;
-import cat.michal.catbase.common.data.TimedList;
 import cat.michal.catbase.server.event.EventDispatcher;
 import cat.michal.catbase.server.event.impl.ConnectionEndEvent;
 import org.jetbrains.annotations.NotNull;
@@ -35,6 +35,7 @@ public abstract class PacketQueue {
         this.queue = new ArrayBlockingQueue<>(queueCapacity);
         this.disconnectionListener = (e) -> unsubscribe(e.getConnection());
         EventDispatcher.getInstance().hook(ConnectionEndEvent.class, this.disconnectionListener);
+        this.packetRedirectThread.start();
     }
 
     /**

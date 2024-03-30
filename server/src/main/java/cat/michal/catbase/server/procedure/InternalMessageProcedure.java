@@ -16,11 +16,11 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 
-public class InternalMessageProcedure implements BiProcedure<Boolean, Message, CatBaseServerCommunicationThread> {
+public class InternalMessageProcedure implements BiProcedure<InternalProcedureResult, Message, CatBaseServerCommunicationThread> {
     private static final Logger logger = LoggerFactory.getLogger(InternalMessageProcedure.class);
 
     @Override
-    public Boolean proceed(Message arg, CatBaseServerCommunicationThread connection) {
+    public InternalProcedureResult proceed(Message arg, CatBaseServerCommunicationThread connection) {
         SerializablePayload payload = arg.deserializePayload();
         if(payload instanceof HandshakePacket handshakePacket) {
             Optional<User> userOptional = UserRegistry.getUsers().stream()
@@ -28,19 +28,20 @@ public class InternalMessageProcedure implements BiProcedure<Boolean, Message, C
                     .findFirst();
             if(userOptional.isEmpty()) {
                 connection.endConnection();
-                return true;
+                return InternalProcedureResult.AUTH_ERROR;
             }
             User user = userOptional.get();
 
             if(!UserRegistry.encodePassword(handshakePacket.password).equals(user.password())) {
                 logger.debug("Failed to authenticate " + connection.getClient().getId());
                 connection.endConnection();
-                return true;
+                return InternalProcedureResult.AUTH_ERROR;
             }
 
             logger.debug("Authenticated " + connection.getClient().getId());
             connection.verify();
-            return true;
+            connection.getClient().sendAcknowledgement(arg);
+            return InternalProcedureResult.DO_NOT_CONTINUE;
         }
         if(payload instanceof QueueSubscribePacket queuePacket) {
             ExchangeRegistry.findQueue(queuePacket.queueName).ifPresentOrElse(queue -> {
@@ -50,7 +51,7 @@ public class InternalMessageProcedure implements BiProcedure<Boolean, Message, C
                     new ErrorPacket(ErrorType.QUEUE_NOT_FOUND, "Queue '" + queuePacket.queueName + "' was not found"),
                     arg
             ));
-            return true;
+            return InternalProcedureResult.DO_NOT_CONTINUE;
         }
         if(payload instanceof QueueUnsubscribePacket queueUnsubscribePacket) {
             ExchangeRegistry.findQueue(queueUnsubscribePacket.queueName).ifPresentOrElse(queue -> {
@@ -60,8 +61,9 @@ public class InternalMessageProcedure implements BiProcedure<Boolean, Message, C
                     new ErrorPacket(ErrorType.QUEUE_NOT_FOUND, "Queue '" + queueUnsubscribePacket.queueName + "' was not found"),
                     arg
             ));
-            return true;
+            return InternalProcedureResult.DO_NOT_CONTINUE;
         }
-        return false;
+
+        return InternalProcedureResult.CONTINUE;
     }
 }

@@ -8,7 +8,7 @@ public class ExchangeDetermineProcedure implements Procedure<Exchange, Message> 
     @Override
     public Exchange proceed(Message arg) {
         return ExchangeRegistry.getExchanges().stream()
-                .filter(element -> arg.getExchangeName().equals(element.getName()))
+                .filter(element -> element.getName().equals(arg.getExchangeName()))
                 .findFirst()
                 .orElse(null);
     }

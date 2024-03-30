@@ -11,6 +11,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
+
+@SuppressWarnings("unused")
 public final class Message {
     private static final ObjectReader cborMapper = new CBORMapper().reader();
     private byte[] payload;
@@ -118,9 +120,11 @@ public final class Message {
 
     @Override
     public String toString() {
-        return String.format("M{id=%s correlationId=%s payload=\"%s\"}",
+        return String.format("M{id=%s correlationId=%s route=\"%s\" exchange=\"%s\" payload=\"%s\"}",
                 PacketType.findType(this.packetId).map(String::valueOf).orElseGet(() -> String.valueOf(this.packetId)),
                 this.correlationId.toString(),
+                this.routingKey,
+                this.exchangeName,
                 new String(this.payload)
         );
     }

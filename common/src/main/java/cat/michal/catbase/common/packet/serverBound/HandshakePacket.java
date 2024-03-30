@@ -13,5 +13,6 @@ public class HandshakePacket implements AuthorizationPacket {
     /**
      * Needed for CBOR
      */
+    @SuppressWarnings("unused")
     public HandshakePacket() {}
 }

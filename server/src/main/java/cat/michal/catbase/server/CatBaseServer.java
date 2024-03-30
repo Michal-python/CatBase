@@ -1,25 +1,29 @@
 package cat.michal.catbase.server;
 
+import cat.michal.catbase.common.data.ListKeeper;
 import cat.michal.catbase.common.exception.CatBaseException;
 import cat.michal.catbase.common.model.CatBaseConnection;
-import cat.michal.catbase.common.data.ListKeeper;
 import cat.michal.catbase.server.event.EventDispatcher;
 import cat.michal.catbase.server.event.impl.ConnectionEstablishEvent;
+import cat.michal.catbase.server.exchange.ExchangeRegistry;
+import cat.michal.catbase.server.packets.PacketQueue;
 import cat.michal.catbase.server.procedure.ProcedureRegistry;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class CatBaseServer implements BaseServer {
     private static final EventDispatcher eventDispatcher = new EventDispatcher();
     private volatile boolean running;
     private final int port;
     private ServerSocket serverSocket;
+    @SuppressWarnings("all")
     private final List<CatBaseConnection> connections;
+    private static final AtomicInteger threadId = new AtomicInteger(0);
 
     public CatBaseServer(int port) {
         this.connections = new ArrayList<>();
@@ -41,8 +45,9 @@ public class CatBaseServer implements BaseServer {
             Socket connection = null;
 
             try {
+                assert this.serverSocket != null;
                 connection = this.serverSocket.accept();
-            } catch (IOException e) {
+            } catch (IOException | NullPointerException | AssertionError e) {
                 if(this.serverSocket != null && !this.serverSocket.isClosed()) {
                     throw new CatBaseException(e);
                 }
@@ -56,7 +61,7 @@ public class CatBaseServer implements BaseServer {
                 connections.add(catBaseConnection);
                 eventDispatcher.dispatch(new ConnectionEstablishEvent(catBaseConnection));
 
-                new Thread(new CatBaseServerCommunicationThread(catBaseConnection, eventDispatcher)).start();
+                new Thread(new CatBaseServerCommunicationThread(catBaseConnection, eventDispatcher), "Server-Client-Handler-Thread-" + threadId.incrementAndGet()).start();
             }
         }
     }
@@ -76,6 +81,7 @@ public class CatBaseServer implements BaseServer {
 
             //general cleanup
             this.connections.clear();
+            ExchangeRegistry.getExchanges().forEach(exchange -> exchange.queues().forEach(PacketQueue::shutdown));
             ListKeeper.getInstance().shutdown();
         } catch (IOException e) {
             throw new CatBaseException(e);

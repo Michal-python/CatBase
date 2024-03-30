@@ -2,7 +2,6 @@ package cat.michal.catbase.server.procedure;
 
 import cat.michal.catbase.common.model.CatBaseConnection;
 
-import javax.imageio.IIOException;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.UUID;

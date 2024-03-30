@@ -109,7 +109,7 @@ public class CatBaseConnection {
         try {
             writeLock.lock();
             cborMapper.get().writeValue(socket.getOutputStream(), packet);
-            logger.debug("Packet sent " + packet.toString());
+            logger.debug("[" + Thread.currentThread().getName() + "] Packet sent " + packet.toString());
             return true;
         } catch (IOException exception) {
             logger.debug("Got exception while sending packet ", exception);
@@ -120,6 +120,7 @@ public class CatBaseConnection {
     }
 
 
+    @SuppressWarnings("unused")
     public Socket getSocket() {
         return this.socket;
     }

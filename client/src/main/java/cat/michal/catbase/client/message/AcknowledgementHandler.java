@@ -19,12 +19,10 @@ public class AcknowledgementHandler implements MessageHandler {
     public MessageHandleResult handle(Message message) {
         SerializablePayload payload = message.deserializePayload();
         if(payload instanceof AcknowledgementPacket) {
-            clientConnection.awaitingForAck().removeIf(ack -> ack == message.getCorrelationId());
+            clientConnection.awaitingForAck().removeIf(ack -> ack.equals(message.getCorrelationId()));
             client.getReceivedAcknowledgements().stream()
                     .filter(receive -> receive.correlationId().equals(message.getCorrelationId()))
-                    .findAny().ifPresent(present -> {
-                        present.consumer().accept(null);
-                    });
+                    .findAny().ifPresent(present -> present.consumer().accept(null));
 
             return MessageHandleResult.shouldRespond(true);
         }

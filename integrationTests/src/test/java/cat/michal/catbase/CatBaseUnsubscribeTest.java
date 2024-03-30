@@ -15,11 +15,12 @@ import org.junit.jupiter.api.*;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Disabled
-public class CatBaseMessagingTest {
+public class CatBaseUnsubscribeTest {
+    int testingPacketId = 69;
     CatBaseServer server;
     CatBaseClient producer;
     CatBaseClient receiver;
@@ -47,7 +48,7 @@ public class CatBaseMessagingTest {
     }
 
     @Test
-    void testSimpleMessage() throws InterruptedException {
+    void testUnsubscribingToQueue() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         new Thread(() -> {
             producer.connect("127.0.0.1", 8000);
@@ -59,33 +60,42 @@ public class CatBaseMessagingTest {
 
         receiver.subscribe("a");
 
-        AtomicBoolean passed = new AtomicBoolean();
+        AtomicInteger received = new AtomicInteger();
 
         receiver.registerHandler(new MessageHandler() {
             @Override
             public MessageHandleResult handle(Message message) {
-                passed.set(message.getPayload()[0] == 101);
-                return null;
+                received.incrementAndGet();
+                return MessageHandleResult.shouldRespond(false);
             }
 
             @Override
             public long regardingPacketId() {
-                return 30;
+                return testingPacketId;
             }
         });
 
-        producer.send(new Message(
-                new byte[]{101},
-                UUID.randomUUID(),
-                30,
-                "a",
-                "b"
-        ));
+        sendMessage();
+
+        receiver.unsubscribe("a");
+
+        sendMessage();
+
         try {
             Thread.sleep(1000);
         } catch (InterruptedException ignored) {
         }
 
-        Assertions.assertTrue(passed.get());
+        Assertions.assertEquals(1, received.get());
+    }
+
+    void sendMessage() {
+        producer.send(new Message(
+                new byte[]{},
+                UUID.randomUUID(),
+                testingPacketId,
+                "a",
+                "b"
+        ));
     }
 }

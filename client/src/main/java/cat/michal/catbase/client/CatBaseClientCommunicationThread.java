@@ -42,6 +42,7 @@ public class CatBaseClientCommunicationThread implements Runnable {
     public void run() {
         while (true) {
             if(!readIncomingMessages()) {
+                logger.debug("Client side end conn");
                 return;
             }
         }
@@ -72,7 +73,7 @@ public class CatBaseClientCommunicationThread implements Runnable {
                     .filter(handler -> handler.regardingPacketId() == message.getPacketId())
                     .forEach(handler -> {
                         MessageHandleResult result = handler.handle(message);
-                        if(result.isResponse()) {
+                        if(result != null && result.isResponse()) {
                             socket.sendPacket(
                                     new Message(
                                             result.getResponse().getPayload(),
@@ -98,6 +99,7 @@ public class CatBaseClientCommunicationThread implements Runnable {
 
             return true;
         } catch (Exception e) {
+            logger.debug("Client recv error", e);
             endConnection();
             return false;
         }

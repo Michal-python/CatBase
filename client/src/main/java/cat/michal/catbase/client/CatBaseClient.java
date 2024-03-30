@@ -113,7 +113,7 @@ public class CatBaseClient implements BaseClient {
 
     public boolean unsubscribe(String queueName) {
         try {
-            sendAndReceive(new Message(
+            sendAndReceiveAck(new Message(
                     new QueueUnsubscribePacket(queueName).serialize(),
                     UUID.randomUUID(),
                     PacketType.UNSUBSCRIBE.getId(),
@@ -131,7 +131,7 @@ public class CatBaseClient implements BaseClient {
         UUID hookId = UUID.randomUUID();
 
         this.receivedAcknowledgements.add(new ReceivedHook<>(hookId, message.getCorrelationId(), msg -> {
-            this.receivedAcknowledgements.removeIf(responseElement -> responseElement.id().equals(hookId));
+            this.receivedAcknowledgements.removeIf(ackElement -> ackElement.id().equals(hookId));
             future.complete(msg);
         }));
 

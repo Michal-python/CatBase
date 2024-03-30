@@ -62,6 +62,13 @@ public final class Message {
         return this;
     }
 
+    public Message withHeaders(Map<String, Object> val) {
+        this.headers.clear();
+
+        this.headers.putAll(val);
+        return this;
+    }
+
     public void setExchangeName(String exchangeName) {
         this.exchangeName = exchangeName;
     }

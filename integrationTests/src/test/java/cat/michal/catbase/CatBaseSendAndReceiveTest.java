@@ -16,6 +16,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 
@@ -64,7 +65,7 @@ public class CatBaseSendAndReceiveTest {
             @Override
             public MessageHandleResult handle(Message message, Object payload) {
 
-                return MessageHandleResult.response(new Message("Hello".getBytes()));
+                return MessageHandleResult.response(new Message("Hello".getBytes()).withHeaders(message.getHeaders()));
             }
         });
 
@@ -72,9 +73,10 @@ public class CatBaseSendAndReceiveTest {
                 new byte[]{101},
                 "ab_2243",
                 "b_2243"
-        ));
+        ).withHeaders(Map.of("Header1", 2)));
 
         Assertions.assertArrayEquals("Hello".getBytes(), response.get().getPayload());
+        Assertions.assertEquals(2, response.get().getHeaders().get("Header1"));
     }
 
 }

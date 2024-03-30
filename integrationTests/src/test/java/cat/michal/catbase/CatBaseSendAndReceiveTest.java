@@ -28,7 +28,7 @@ public class CatBaseSendAndReceiveTest {
 
     @BeforeAll
     static void setup() throws InterruptedException {
-        server = new CatBaseServer(55122);
+        server = new CatBaseServer(3273);
         UserRegistry.registerUser("prod_2243", "password");
         UserRegistry.registerUser("recv_2243", "password");
         ExchangeRegistry.register(new DirectExchange("b_2243", List.of(
@@ -52,12 +52,12 @@ public class CatBaseSendAndReceiveTest {
     void testSimpleMessage() throws InterruptedException, ExecutionException {
         CountDownLatch latch = new CountDownLatch(1);
         new Thread(() -> {
-            producer.connect("127.0.0.1", 55122);
+            producer.connect("127.0.0.1", 3273);
             latch.countDown();
         }).start();
 
         latch.await();
-        receiver.connect("127.0.0.1", 55122);
+        receiver.connect("127.0.0.1", 3273);
 
         receiver.subscribe("ab_2243");
 

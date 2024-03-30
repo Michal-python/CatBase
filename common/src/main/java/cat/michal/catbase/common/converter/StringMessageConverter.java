@@ -1,13 +1,15 @@
 package cat.michal.catbase.common.converter;
 
+import cat.michal.catbase.common.message.Message;
+
 public class StringMessageConverter extends AbstractMessageConverter<String> {
     @Override
-    public String decode(byte[] message) {
-        return new String(message);
+    public String decode(Message message) {
+        return new String(message.getPayload());
     }
 
     @Override
-    public byte[] encode(String object) {
-        return object.getBytes();
+    public Message encode(String object) {
+        return new Message(object.getBytes());
     }
 }

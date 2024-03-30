@@ -154,11 +154,11 @@ public class CatBaseClient implements BaseClient {
 
     public <T> void convertAndSend(T message, String exchangeName, String routingKey) {
         try {
-            this.socket.sendPacket(new Message(
-                    abstractMessageConverter.encode(message),
-                    routingKey,
-                    exchangeName
-            ));
+            Message newMessage = abstractMessageConverter.encode(message);
+            newMessage.setExchangeName(exchangeName);
+            newMessage.setRoutingKey(routingKey);
+
+            this.socket.sendPacket(newMessage);
         } catch (Exception e) {
             throw new CatBaseException(e);
         }
@@ -169,11 +169,9 @@ public class CatBaseClient implements BaseClient {
         UUID hookId = UUID.randomUUID();
         Message newMessage = null;
         try {
-            newMessage = new Message(
-                    abstractMessageConverter.encode(message),
-                    routingKey,
-                    exchangeName
-            );
+            newMessage = abstractMessageConverter.encode(message);
+            newMessage.setExchangeName(exchangeName);
+            newMessage.setRoutingKey(routingKey);
         } catch (Exception e) {
             throw new CatBaseException(e);
         }

@@ -80,7 +80,7 @@ public class CatBaseClientCommunicationThread<T> implements Runnable {
                     .forEach(handler -> {
                         MessageHandleResult result;
                         try {
-                            result = handler.handle(message, converter.decode(message.getPayload()));
+                            result = handler.handle(message, converter.decode(message));
                         } catch (Exception e) {
                             try {
                                 socket.socket().sendPacket(new Message(

@@ -34,6 +34,10 @@ public final class Message {
      */
     public Message() {}
 
+    public Message(byte[] payload) {
+        this(payload, null, null);
+    }
+
     public Message(byte[] payload, String routingKey, String exchangeName) {
         this(payload, UUID.randomUUID(), USER_MESSAGE_ID, routingKey, exchangeName);
     }
@@ -56,6 +60,14 @@ public final class Message {
     public Message setShouldRespond(boolean val) {
         this.shouldRespond = val;
         return this;
+    }
+
+    public void setExchangeName(String exchangeName) {
+        this.exchangeName = exchangeName;
+    }
+
+    public void setRoutingKey(String routingKey) {
+        this.routingKey = routingKey;
     }
 
     public Message setOriginQueue(String queueName) {

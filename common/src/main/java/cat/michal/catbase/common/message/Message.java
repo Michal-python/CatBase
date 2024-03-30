@@ -6,10 +6,7 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.dataformat.cbor.databind.CBORMapper;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 
 @SuppressWarnings("unused")
@@ -27,6 +24,7 @@ public final class Message {
      * this field indicates the origin queue; otherwise it is null
      */
     private String originQueue;
+    private Map<String, Object> headers;
 
     /**
      * Needed for cbor
@@ -40,6 +38,7 @@ public final class Message {
         this.packetId = packetId;
         this.isResponse = false;
         this.correlationId = correlationId == null ? UUID.randomUUID() : correlationId;
+        this.headers = new HashMap<>();
     }
 
     public Message setResponse(boolean val) {
@@ -108,7 +107,7 @@ public final class Message {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Message message = (Message) o;
-        return isResponse == message.isResponse && shouldRespond == message.shouldRespond && packetId == message.packetId && Arrays.equals(payload, message.payload) && Objects.equals(correlationId, message.correlationId) && Objects.equals(routingKey, message.routingKey) && Objects.equals(exchangeName, message.exchangeName) && Objects.equals(originQueue, message.originQueue);
+        return isResponse == message.isResponse && shouldRespond == message.shouldRespond && packetId == message.packetId && Arrays.equals(payload, message.payload) && Objects.equals(correlationId, message.correlationId) && Objects.equals(routingKey, message.routingKey) && Objects.equals(exchangeName, message.exchangeName) && Objects.equals(originQueue, message.originQueue) && Objects.equals(headers, message.headers);
     }
 
     @Override

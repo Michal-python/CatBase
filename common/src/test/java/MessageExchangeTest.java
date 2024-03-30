@@ -87,6 +87,8 @@ public class MessageExchangeTest {
     @Test
     public void testTransportProtocol() throws IOException, InterruptedException {
         Message message = new Message("Goodbye World!".getBytes(), UUID.randomUUID(), 0, "key", "queue");
+        message.getHeaders().put("Header1", "Hello");
+        message.getHeaders().put("Header2", 10);
 
         CountDownLatch countDownLatch = new CountDownLatch(1);
         new Thread(() -> {

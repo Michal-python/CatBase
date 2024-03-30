@@ -54,7 +54,7 @@ public class MessageExchangeTest {
     private static final CountDownLatch countDownLatch = new CountDownLatch(1);
 
     @BeforeAll
-    public static void setup() throws IOException, InterruptedException {
+    static void setup() throws IOException, InterruptedException {
         serverSocket = new ServerSocket();
         serverSocket.bind(new InetSocketAddress("localhost", 0));
         int port = serverSocket.getLocalPort();
@@ -77,7 +77,7 @@ public class MessageExchangeTest {
     }
 
     @AfterAll
-    public static void teardown() throws IOException {
+    static void teardown() throws IOException {
         serverSocket.close();
         clientSocket.close();
         clientConn.close();

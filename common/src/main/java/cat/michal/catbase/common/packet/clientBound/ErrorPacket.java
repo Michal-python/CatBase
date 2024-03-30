@@ -12,6 +12,9 @@ public class ErrorPacket implements SerializablePayload {
         this.message = message;
     }
 
+    @SuppressWarnings("unused")
+    public ErrorPacket() {}
+
     public ErrorType getType() {
         return type;
     }

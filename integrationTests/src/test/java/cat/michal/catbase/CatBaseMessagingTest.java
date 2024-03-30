@@ -10,27 +10,28 @@ import cat.michal.catbase.server.auth.UserRegistry;
 import cat.michal.catbase.server.defaultImpl.DefaultQueue;
 import cat.michal.catbase.server.defaultImpl.DirectExchange;
 import cat.michal.catbase.server.exchange.ExchangeRegistry;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@Disabled
 public class CatBaseMessagingTest {
-    CatBaseServer server;
-    CatBaseClient producer;
-    CatBaseClient receiver;
+    static CatBaseServer server;
+    static CatBaseClient producer;
+    static CatBaseClient receiver;
 
     @BeforeAll
-    void setup() throws InterruptedException {
-        server = new CatBaseServer(8000);
+    static void setup() throws InterruptedException {
+        server = new CatBaseServer(6969);
         UserRegistry.registerUser("prod", "password");
         UserRegistry.registerUser("recv", "password");
         ExchangeRegistry.register(new DirectExchange("b", List.of(
-                new DefaultQueue(999, "a")
+                new DefaultQueue(999, "ab")
         )));
         new Thread(server::startServer,"Server-Thread").start();
         Thread.sleep(600);
@@ -40,7 +41,7 @@ public class CatBaseMessagingTest {
 
 
     @AfterAll
-    void tearDown() {
+    static void tearDown() {
         producer.disconnect();
         receiver.disconnect();
         server.stopServer();
@@ -50,14 +51,14 @@ public class CatBaseMessagingTest {
     void testSimpleMessage() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         new Thread(() -> {
-            producer.connect("127.0.0.1", 8000);
+            producer.connect("127.0.0.1", 6969);
             latch.countDown();
         }).start();
 
         latch.await();
-        receiver.connect("127.0.0.1", 8000);
+        receiver.connect("127.0.0.1", 6969);
 
-        receiver.subscribe("a");
+        receiver.subscribe("ab");
 
         AtomicBoolean passed = new AtomicBoolean();
 
@@ -78,7 +79,7 @@ public class CatBaseMessagingTest {
                 new byte[]{101},
                 UUID.randomUUID(),
                 30,
-                "a",
+                "ab",
                 "b"
         ));
         try {

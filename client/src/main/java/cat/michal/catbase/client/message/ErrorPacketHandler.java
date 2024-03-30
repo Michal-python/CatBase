@@ -26,9 +26,7 @@ public class ErrorPacketHandler implements MessageHandler {
             ));
             client.getReceivedAcknowledgements().stream()
                     .filter(receive -> receive.correlationId().equals(message.getCorrelationId()))
-                    .findAny().ifPresent(present -> {
-                        present.consumer().accept(errorPacket);
-                    });
+                    .findAny().ifPresent(present -> present.consumer().accept(errorPacket));
 
             return MessageHandleResult.shouldRespond(true);
         }

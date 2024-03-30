@@ -18,7 +18,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@Disabled
 public class CatBaseUnsubscribeTest {
     int testingPacketId = 69;
     CatBaseServer server;
@@ -28,15 +27,15 @@ public class CatBaseUnsubscribeTest {
     @BeforeAll
     void setup() throws InterruptedException {
         server = new CatBaseServer(8000);
-        UserRegistry.registerUser("prod", "password");
-        UserRegistry.registerUser("recv", "password");
-        ExchangeRegistry.register(new DirectExchange("b", List.of(
+        UserRegistry.registerUser("prod_n", "password");
+        UserRegistry.registerUser("recv_n", "password");
+        ExchangeRegistry.register(new DirectExchange("c", List.of(
                 new DefaultQueue(999, "a")
         )));
         new Thread(server::startServer,"Server-Thread").start();
         Thread.sleep(600);
-        producer = new CatBaseClient(new PasswordCredentials("prod", "password"), List.of());
-        receiver = new CatBaseClient(new PasswordCredentials("recv", "password"), List.of());
+        producer = new CatBaseClient(new PasswordCredentials("prod_n", "password"), List.of());
+        receiver = new CatBaseClient(new PasswordCredentials("recv_n", "password"), List.of());
     }
 
 
@@ -95,7 +94,7 @@ public class CatBaseUnsubscribeTest {
                 UUID.randomUUID(),
                 testingPacketId,
                 "a",
-                "b"
+                "c"
         ));
     }
 }

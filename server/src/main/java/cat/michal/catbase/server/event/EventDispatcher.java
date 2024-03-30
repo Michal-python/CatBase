@@ -17,15 +17,15 @@ public class EventDispatcher {
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
-    public <T extends Event> void hook(Class<T> clazz, Consumer<T> callback) {
+    public synchronized <T extends Event> void hook(Class<T> clazz, Consumer<T> callback) {
         this.hooks.add(new EventListener(callback, clazz));
     }
 
-    public <T extends Event> void unhook(Consumer<T> callback) {
+    public synchronized <T extends Event> void unhook(Consumer<T> callback) {
         this.hooks.removeIf(l -> l.consumer == callback);
     }
 
-    public <T extends Event> void dispatch(T event) {
+    public synchronized <T extends Event> void dispatch(T event) {
         hooks.stream()
                 .filter(hook -> hook.clazz == event.getClass())
                 .forEach(hook -> hook.consumer.accept(event));

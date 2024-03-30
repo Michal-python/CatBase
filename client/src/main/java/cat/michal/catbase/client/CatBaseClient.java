@@ -32,11 +32,11 @@ public class CatBaseClient implements BaseClient {
     private final AbstractMessageConverter abstractMessageConverter;
     private static final AtomicInteger threadId = new AtomicInteger(0);
 
-    public <T> CatBaseClient(AuthCredentials credentials, List<MessageHandler> handlers) {
+    public CatBaseClient(AuthCredentials credentials, List<MessageHandler> handlers) {
         this(credentials, handlers, new DefaultMessageConverter());
     }
 
-    public <T> CatBaseClient(AuthCredentials credentials, List<MessageHandler> handlers, AbstractMessageConverter<T> abstractMessageConverter) {
+    public CatBaseClient(AuthCredentials credentials, List<MessageHandler> handlers, AbstractMessageConverter abstractMessageConverter) {
         this.credentials = credentials;
         this.handlers = new ArrayList<>(handlers);
         this.receivedResponses = ListKeeper.getInstance().createDefaultTimeList();
@@ -164,7 +164,7 @@ public class CatBaseClient implements BaseClient {
         }
     }
 
-    public <T> CompletableFuture<Message> convertSendAndReceive(T message, String exchangeName, String routingKey) {
+    public <T> CompletableFuture<T> convertSendAndReceive(T message, String exchangeName, String routingKey) {
         CompletableFuture<Message> future = new CompletableFuture<>();
         UUID hookId = UUID.randomUUID();
         Message newMessage = null;
@@ -181,8 +181,14 @@ public class CatBaseClient implements BaseClient {
             future.complete(msg);
         }));
 
-        socket.sendPacket(newMessage);
-        return future;
+        socket.sendPacket(newMessage.setShouldRespond(true));
+        return future.thenApply((m) -> {
+            try {
+                return (T) getConverter().decode(m);
+            } catch (Exception e) {
+                throw new CatBaseException(e);
+            }
+        });
     }
 
     public CompletableFuture<Message> sendAndReceive(Message message) {
@@ -194,7 +200,7 @@ public class CatBaseClient implements BaseClient {
             future.complete(msg);
         }));
 
-        socket.sendPacket(message);
+        socket.sendPacket(message.setShouldRespond(true));
         return future;
     }
 }

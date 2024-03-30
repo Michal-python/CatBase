@@ -76,7 +76,7 @@ public abstract class PacketQueue {
         if (packet.isResponse()) {
             var packetElement = receivedMessages.findAndRemove(element -> element.message.getCorrelationId().equals(packet.getCorrelationId()));
             if (packetElement != null) {
-                if (packetElement.message.shouldRespond()) {
+                if (packetElement.message.isShouldRespond()) {
                     CatBaseConnection requesterConnection = packetElement.connection.get();
                     if (requesterConnection == null || !requesterConnection.sendPacket(packet.setOriginQueue(this.name))) {
                         origin.sendError(new ErrorPacket(ErrorType.UNSPECIFIED, "The sender is long gone!"), packet);
@@ -91,7 +91,7 @@ public abstract class PacketQueue {
             return;
         }
 
-        if (packet.shouldRespond()) {
+        if (packet.isShouldRespond()) {
             receivedMessages.add(new ReceivedMessage(packet, new WeakReference<>(origin)));
         }
         queue.add(packet);

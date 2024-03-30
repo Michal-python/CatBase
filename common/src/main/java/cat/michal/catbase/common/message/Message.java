@@ -75,7 +75,11 @@ public final class Message {
         return this;
     }
 
-    public boolean shouldRespond() {
+    public void setCorrelationId(UUID correlationId) {
+        this.correlationId = correlationId;
+    }
+
+    public boolean isShouldRespond() {
         return shouldRespond;
     }
 
@@ -142,11 +146,12 @@ public final class Message {
 
     @Override
     public String toString() {
-        return String.format("M{id=%s correlationId=%s route=\"%s\" exchange=\"%s\" payload=\"%s\"}",
+        return String.format("M{id=%s correlationId=%s route=\"%s\" exchange=\"%s\" shouldRespond=%b payload=\"%s\"}",
                 PacketType.findType(this.packetId).map(String::valueOf).orElseGet(() -> String.valueOf(this.packetId)),
                 this.correlationId.toString(),
                 this.routingKey,
                 this.exchangeName,
+                this.shouldRespond,
                 new String(this.payload)
         );
     }

@@ -95,15 +95,12 @@ public class CatBaseClientCommunicationThread<T> implements Runnable {
                             return;
                         }
                         if(result != null && result.isResponse()) {
-                            socket.sendPacket(
-                                    new Message(
-                                            result.getResponse().getPayload(),
-                                            message.getCorrelationId(),
-                                            result.getResponse().getPacketId(),
-                                            message.getRoutingKey(),
-                                            message.getExchangeName()
-                                    ).setResponse(true)
-                            );
+                            Message responseMessage = result.getResponse();
+                            responseMessage.setCorrelationId(message.getCorrelationId());
+                            responseMessage.setRoutingKey(message.getRoutingKey());
+                            responseMessage.setExchangeName(message.getExchangeName());
+
+                            socket.sendPacket(responseMessage.setResponse(true));
                         } else {
                             try {
                                 socket.sendPacket(new Message(

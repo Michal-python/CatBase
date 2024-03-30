@@ -27,6 +27,7 @@ public class MessageExchangeTest {
         CBORMapper cbor = new CBORMapper();
         cbor.getFactory().disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET);
         Message message1 = new Message("Hello".getBytes(), UUID.randomUUID(), 0, "a", "b");
+        message1.setShouldRespond(true);
         Message message2 = new Message("World".getBytes(), UUID.randomUUID(), 1, "c", "d");
 
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();

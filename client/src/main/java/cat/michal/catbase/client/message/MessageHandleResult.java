@@ -1,12 +1,13 @@
 package cat.michal.catbase.client.message;
 
+import cat.michal.catbase.common.message.Message;
 import org.jetbrains.annotations.NotNull;
 
 public final class MessageHandleResult {
     private MessageHandleResult() {
     }
 
-    private MessageResponse response;
+    private Message response;
     private boolean shouldRespond;
 
     public static @NotNull MessageHandleResult shouldRespond(boolean val) {
@@ -16,7 +17,7 @@ public final class MessageHandleResult {
         return messageHandleResult;
     }
 
-    public static @NotNull MessageHandleResult response(MessageResponse message) {
+    public static @NotNull MessageHandleResult response(Message message) {
         MessageHandleResult messageHandleResult = new MessageHandleResult();
         messageHandleResult.response = message;
 
@@ -28,7 +29,7 @@ public final class MessageHandleResult {
     }
 
 
-    public MessageResponse getResponse() {
+    public Message getResponse() {
         return response;
     }
 

@@ -60,12 +60,14 @@ public class CatBaseUnsubscribeTest {
         receiver.subscribe("a");
 
         AtomicInteger received = new AtomicInteger();
+        CountDownLatch messageLatch = new CountDownLatch(1);
 
         receiver.registerHandler(new MessageHandler<>() {
 
             @Override
             public MessageHandleResult handle(Message message, Object payload) {
                 received.incrementAndGet();
+                messageLatch.countDown();
                 return MessageHandleResult.shouldRespond(false);
             }
 
@@ -81,10 +83,7 @@ public class CatBaseUnsubscribeTest {
 
         sendMessage();
 
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException ignored) {
-        }
+        messageLatch.await();
 
         Assertions.assertEquals(1, received.get());
     }

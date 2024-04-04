@@ -9,6 +9,7 @@
         <version>1.3</version>
     </parent>
 
+    <groupId>cat.michal.catbase.injector</groupId>
     <artifactId>dependencyInjection</artifactId>
 
     <properties>

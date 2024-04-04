@@ -6,22 +6,21 @@ import cat.michal.catbase.injector.basicMock.NiceComponent;
 import cat.michal.catbase.injector.exceptions.InjectorException;
 import org.junit.jupiter.api.*;
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class BasicInjectionTest {
 
-    private ClassThatInjects classThatInjects;
-    private DefaultInjector injector;
+    static ClassThatInjects classThatInjects;
+    static CatBaseInjector injector;
 
     @BeforeAll
-    void setup() {
-        DefaultInjector defaultInjector = new DefaultInjector("cat.michal.catbase.injector.basicMock");
-        this.injector = defaultInjector;
-        this.classThatInjects = defaultInjector.getInstance(ClassThatInjects.class);
+    static void setup() {
+        CatBaseInjector catBaseInjector = new CatBaseInjector("cat.michal.catbase.injector.basicMock");
+        injector = catBaseInjector;
+        classThatInjects = catBaseInjector.getInstance(ClassThatInjects.class);
     }
 
     @AfterAll
-    void destroy() {
-        this.classThatInjects = null;
+    static void destroy() {
+        classThatInjects = null;
     }
 
     @Test

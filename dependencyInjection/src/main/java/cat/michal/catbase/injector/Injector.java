@@ -22,15 +22,15 @@ public interface Injector {
     /**
      * Method for getting all registered injectable components
      *
-     * @return List of {@link Injectable}
+     * @return List of {@link Dependency}
      */
     @SuppressWarnings("unused")
-    List<Injectable<?>> getAll();
+    List<Dependency<?>> getAll();
 
 
     /**
      * Method that registers all injectable components in given (in the constructor) package
-     * In {@link DefaultInjector} implementation, it is invoked in {@link DefaultInjector(String)} constructor
+     * In {@link CatBaseInjector} implementation, it is invoked in {@link CatBaseInjector (String)} constructor
      */
     void registerInjectables();
 
@@ -40,7 +40,7 @@ public interface Injector {
      * @param instance class which fields will be injected
      * @param <T> instance type
      */
-    <T> void inject(T instance);
+    <T> void injectField(T instance);
 
     /**
      * Method that returns instance of injectable component from dependency injection container

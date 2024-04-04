@@ -3,26 +3,20 @@ package cat.michal.catbase.injector;
 import cat.michal.catbase.injector.annotations.*;
 import cat.michal.catbase.injector.exceptions.InjectorException;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
 import java.util.*;
-import java.util.stream.Collectors;
 
-public class DefaultInjector implements Injector {
-    private final List<Injectable<?>> injectables;
+public class CatBaseInjector implements Injector {
+    private final List<Dependency<?>> dependencies;
     private final List<Class<?>> classes;
-
-
-    public DefaultInjector(String packagePath) {
+    public CatBaseInjector(String packagePath) {
         this(new ArrayList<>(), packagePath);
     }
 
-    private DefaultInjector(List<Injectable<?>> injectables, String packagePath) {
-        this.injectables = injectables;
-        this.classes = findAllClasses(packagePath).stream().toList();
+    private CatBaseInjector(List<Dependency<?>> dependencies, String packagePath) {
+        this.dependencies = dependencies;
+        this.classes = ClassFinder.findAllClasses(packagePath).stream().toList();
 
         this.registerInjectables();
     }
@@ -58,12 +52,16 @@ public class DefaultInjector implements Injector {
             return createInstance(primaryImplementations.get(0));
         }
 
-        return instantiate(clazz);
+        return instantiate((Dependency<? extends T>) dependencies.stream()
+                .filter(dependency -> dependency.getClazz().equals(clazz))
+                .findAny()
+                .orElseThrow(() -> new InjectorException("Dependency for class " + clazz.getName() + " not found. Consider adding @Component annotation"))
+        );
     }
 
     @Override
-    public List<Injectable<?>> getAll() {
-        return Collections.unmodifiableList(injectables);
+    public List<Dependency<?>> getAll() {
+        return Collections.unmodifiableList(dependencies);
     }
 
     @Override
@@ -77,29 +75,90 @@ public class DefaultInjector implements Injector {
                                 .filter(clazz::isAssignableFrom)
                                 .filter(implementation -> !implementation.isInterface())
                                 .filter(implementation -> !implementation.isAnnotationPresent(Exclude.class))
-                                .forEach(this::registerInjectable);
+                                .forEach(this::registerDependency);
                         return;
                     }
-                    this.registerInjectable(clazz);
+                    this.registerDependency(clazz);
                 });
 
-        injectables.forEach(injectable -> inject(injectable.getInstance()));
+        //check for nested dependencies
+        dependencies.forEach(dependency -> Arrays.stream(dependency.getClazz().getDeclaredFields())
+                .filter(field -> !field.isAnnotationPresent(Exclude.class))
+                .forEach(field -> {
+                    Class<?> fieldType = field.getType();
+                    dependencies.stream()
+                            .filter(dep -> fieldType.isAssignableFrom(dep.getClazz()))
+                            .findFirst().ifPresent(dependency::addDependency);
+                }));
+
+        //check for circular dependencies
+        Set<Dependency<?>> visited = new HashSet<>();
+        for (Dependency<?> dependency : dependencies) {
+            if (!visited.contains(dependency)) {
+                checkCircularDependency(dependency, visited, new HashSet<>());
+            }
+        }
+
+        //initialize dependencies
+        List<Dependency<?>> sortedDependencies = new ArrayList<>();
+        dependencies.forEach(dependency -> initializeDependency(dependency, sortedDependencies));
+
+
+
+        //all dependencies initialized at this point
+        sortedDependencies.forEach(dependency -> {
+            dependency.setInstance(createInstance(dependency.getClazz()));
+            injectField(dependency.getInstance());
+
+            Arrays.stream(dependency.getClazz().getMethods())
+                    .filter(method -> method.isAnnotationPresent(PostConstruct.class))
+                    .findAny()
+                    .ifPresent(method -> {
+                        try {
+                            method.invoke(dependency.getInstance());
+                        } catch (Exception e) {
+                            throw new InjectorException("Error while invoking post construct method " + method.getName(), e);
+                        }
+                    });
+        });
+    }
+
+    private void initializeDependency(Dependency<?> dependency, List<Dependency<?>> sortedDependencies) {
+        if (!sortedDependencies.contains(dependency)) {
+            dependency.getDepends().forEach(dep -> initializeDependency(dep, sortedDependencies));
+            sortedDependencies.add(dependency);
+        }
+    }
+
+    private void checkCircularDependency(Dependency<?> dependency, Set<Dependency<?>> visited, Set<Dependency<?>> stack) {
+        if (stack.contains(dependency)) {
+            throw new InjectorException("Circular dependency detected involving " + dependency.getClazz());
+        }
+        if (!visited.contains(dependency)) {
+            visited.add(dependency);
+            stack.add(dependency);
+            for (Dependency<?> dependent : dependency.getDepends()) {
+                checkCircularDependency(dependent, visited, stack);
+            }
+            stack.remove(dependency);
+        }
     }
 
     @Override
-    public <T> void inject(T instance) {
+    @SuppressWarnings("unchecked")
+    public <T> void injectField(T instance) {
         Arrays.stream(instance.getClass().getDeclaredFields())
                 .filter(field -> field.isAnnotationPresent(Inject.class))
                 .filter(field -> !Modifier.isFinal(field.getModifiers()))
                 .forEach(field -> {
                     try {
                         String injectName = field.getAnnotation(Inject.class).value();
-                        Object toInject = injectables.stream()
-                                .filter(injectable -> {
+                        T toInject = (T) dependencies.stream()
+                                .filter(dependency -> {
                                     if(field.getType().isInterface()) {
-                                        return injectable.getClazz().isAssignableFrom(field.getType());
+                                        return dependency.getClazz().isAssignableFrom(field.getType());
                                     }
-                                    return injectable.getClazz().equals(field.getType()) || (!injectName.isEmpty() && injectName.equals(injectable.getName()));
+                                    return dependency.getClazz().equals(field.getType()) || (!injectName.isEmpty() && injectName.equals(dependency.getName()));
                                 })
                                 .findFirst()
                                 .orElseThrow(() -> new InjectorException("Could not find injectable for field " + field.getName()))
@@ -119,27 +178,27 @@ public class DefaultInjector implements Injector {
     @SuppressWarnings("unchecked")
     public <T> T getInstance(Class<T> clazz) {
         if(clazz.isInterface() || Modifier.isAbstract(clazz.getModifiers())) {
-            List<Injectable<?>> implementations = injectables.stream()
-                    .filter(injectable -> clazz.isAssignableFrom(injectable.getClazz()))
+            List<Dependency<?>> implementations = dependencies.stream()
+                    .filter(dependency -> clazz.isAssignableFrom(dependency.getClazz()))
                     .toList();
             if(implementations.isEmpty()) {
                 throw new InjectorException("Could not find implementation for abstraction layer " + clazz.getName());
             } else if(implementations.size() > 1) {
-                List<Injectable<?>> matchingInjectables = implementations.stream()
-                        .filter(injectable -> injectable.getClazz().isAnnotationPresent(Primary.class))
+                List<Dependency<?>> matchingDependencies = implementations.stream()
+                        .filter(dependency -> dependency.getClazz().isAnnotationPresent(Primary.class))
                         .toList();
-                if(matchingInjectables.size() > 1) {
+                if(matchingDependencies.size() > 1) {
                     throw new InjectorException("Found multiple implementations for abstraction layer " + clazz.getName() + " and multiple primary implementations");
-                } else if(matchingInjectables.isEmpty()) {
+                } else if(matchingDependencies.isEmpty()) {
                     throw new InjectorException("Could not find primary implementation for abstraction layer " + clazz.getName());
                 }
-                return (T) matchingInjectables.get(0).getInstance();
+                return (T) matchingDependencies.get(0).getInstance();
             } else {
                 return (T) implementations.get(0).getInstance();
             }
         }
-        return ((T) injectables.stream()
-                .filter(injectable -> injectable.getClazz().equals(clazz))
+        return ((T) dependencies.stream()
+                .filter(dependency -> dependency.getClazz().equals(clazz))
                 .findFirst()
                 .orElseThrow(() -> new InjectorException("Could not find injectable for class " + clazz.getName()))
                 .getInstance());
@@ -147,35 +206,30 @@ public class DefaultInjector implements Injector {
 
     @Override
     public void clearInjectables() {
-        this.injectables.clear();
+        this.dependencies.clear();
     }
 
 
     @SuppressWarnings("unchecked")
-    private <T> T instantiate(Class<?> clazz) {
-        Constructor<T> constructor = (Constructor<T>) Arrays.stream(clazz.getConstructors())
+    private <T> T instantiate(Dependency<T> dependency) {
+        Constructor<T> constructor = (Constructor<T>) Arrays.stream(dependency.getClazz().getConstructors())
                 .filter(constructorElement -> constructorElement.getParameterTypes().length == 0 || Arrays.stream(constructorElement.getParameterTypes())
                         .allMatch(element -> containsByClass(element) || (element.isInterface() && element.isAnnotationPresent(Component.class)))
                 )
                 .findAny()
-                .orElseThrow(() -> new InjectorException("No matching constructor found for class " + clazz.getName()));
+                .orElseThrow(() -> new InjectorException("No matching constructor found for class " + dependency.getClazz().getName()));
         try {
             if(constructor.getParameterCount() == 0) {
                 return constructor.newInstance();
             }
-            return constructor.newInstance(Arrays.stream(constructor.getParameterTypes()).map(parameter -> {
-                try {
-                    return getInstance(parameter);
-                } catch (InjectorException ignored) {
-                    return createInstance(parameter);
-                }
-            }).toArray());
+
+            return constructor.newInstance(Arrays.stream(constructor.getParameterTypes()).map(this::getInstance).toArray());
         } catch (Exception exception) {
-            throw new InjectorException("Could not instantiate class " + clazz.getName(), exception);
+            throw new InjectorException("Could not instantiate class " + dependency.getClazz().getName(), exception);
         }
     }
 
-    private <T> void registerInjectable(Class<T> clazz) {
+    private <T> void registerDependency(Class<T> clazz) {
         if(this.containsByClass(clazz)) {
             throw new InjectorException("Class " + clazz.getName() + " is already registered");
         }
@@ -183,46 +237,17 @@ public class DefaultInjector implements Injector {
         if(containsByName(injectableName)) {
             throw new InjectorException("Class with component name " + injectableName + " is already registered");
         }
-        Injectable<T> injectable = new Injectable<>(injectableName, clazz, createInstance(clazz));
-        this.injectables.add(injectable);
-        Arrays.stream(clazz.getMethods())
-                .filter(method -> method.isAnnotationPresent(PostConstruct.class))
-                .findAny()
-                .ifPresent(method -> {
-                    try {
-                        method.invoke(injectable.getInstance());
-                    } catch (Exception e) {
-                        throw new InjectorException("Error while invoking post construct method " + method.getName(), e);
-                    }
-                });
+        Dependency<T> dependency = new Dependency<>(injectableName, clazz, null);
+        this.dependencies.add(dependency);
     }
-
-    private Set<Class<?>> findAllClasses(String packageName) {
-        InputStream stream = ClassLoader.getSystemClassLoader()
-                .getResourceAsStream(packageName.replaceAll("[.]", "/"));
-        assert stream != null;
-        BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
-        return reader.lines()
-                .filter(line -> line.endsWith(".class"))
-                .map(line -> {
-                    try {
-                        return Class.forName(packageName + "." + line.substring(0, line.lastIndexOf('.')));
-                    } catch (ClassNotFoundException ignored) {
-                    }
-                    return null;
-                })
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-    }
-
     private <T> boolean containsByClass(Class<T> clazz) {
-        return injectables.stream().anyMatch(injectable -> injectable.getClazz().equals(clazz));
+        return dependencies.stream().anyMatch(dependency -> dependency.getClazz().equals(clazz));
     }
 
     private boolean containsByName(String injectableName) {
         if(injectableName.isEmpty()) {
             return false;
         }
-        return injectables.stream().anyMatch(injectable -> injectable.getName().equals(injectableName));
+        return dependencies.stream().anyMatch(dependency -> dependency.getName().equals(injectableName));
     }
 }

@@ -12,7 +12,7 @@ public class CircularDependencyTest {
     void testSingleDepth() {
         boolean test = false;
         try {
-            new DefaultInjector("cat.michal.catbase.injector.singleDepth");
+            new CatBaseInjector("cat.michal.catbase.injector.singleDepth");
         } catch (InjectorException ignored) {
             test = true;
         }
@@ -24,7 +24,7 @@ public class CircularDependencyTest {
     void testMultipleDepth() {
         boolean test = false;
         try {
-            new DefaultInjector("cat.michal.catbase.injector.mock");
+            new CatBaseInjector("cat.michal.catbase.injector.mock");
         } catch (InjectorException ignored) {
             test = true;
         }

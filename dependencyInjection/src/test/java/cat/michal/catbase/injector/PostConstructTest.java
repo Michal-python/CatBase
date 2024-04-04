@@ -8,11 +8,11 @@ import org.junit.jupiter.api.TestInstance;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class PostConstructTest {
-    private DefaultInjector injector;
+    private CatBaseInjector injector;
 
     @BeforeAll
     void setup() {
-        this.injector = new DefaultInjector("cat.michal.catbase.injector.postConstruct");
+        this.injector = new CatBaseInjector("cat.michal.catbase.injector.postConstruct");
     }
 
     @Test

@@ -43,7 +43,7 @@ public interface Injector {
     <T> void injectField(T instance);
 
     /**
-     * Method that returns instance of injectable component from dependency injection container
+     * Method that returns instance of an injectable component from dependency injection container
      *
      * @param clazz class type that will be returned
      * @return instance from dependency injection container

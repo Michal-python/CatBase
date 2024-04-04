@@ -75,7 +75,7 @@ public class CatBaseServerCommunicationThread implements Runnable {
         try {
             Message message = client.readMessage();
 
-            logger.debug("Packet received " + message.toString() + " from client " + client.getId());
+            logger.debug("Packet received {} from client {}", message.toString(), client.getId());
 
             switch (procedureInjector.getInstance(InternalMessageProcedure.class).proceed(message, this)) {
                 case CONTINUE -> { }
@@ -105,7 +105,7 @@ public class CatBaseServerCommunicationThread implements Runnable {
             }
         } catch (IOException exception) {
             endConnection();
-            logger.debug("Exception from client " + client.getId() + " ", exception);
+            logger.debug("Exception from client {} ", client.getId(), exception);
             return false;
         }
 

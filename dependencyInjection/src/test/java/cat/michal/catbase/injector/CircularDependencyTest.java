@@ -10,25 +10,11 @@ public class CircularDependencyTest {
 
     @Test
     void testSingleDepth() {
-        boolean test = false;
-        try {
-            new CatBaseInjector("cat.michal.catbase.injector.singleDepth");
-        } catch (InjectorException ignored) {
-            test = true;
-        }
-
-        Assertions.assertTrue(test);
+        Assertions.assertThrows(InjectorException.class, () -> new CatBaseInjector("cat.michal.catbase.injector.singleDepth"));
     }
 
     @Test
     void testMultipleDepth() {
-        boolean test = false;
-        try {
-            new CatBaseInjector("cat.michal.catbase.injector.mock");
-        } catch (InjectorException ignored) {
-            test = true;
-        }
-
-        Assertions.assertTrue(test);
+        Assertions.assertThrows(InjectorException.class, () -> new CatBaseInjector("cat.michal.catbase.injector.mock"));
     }
 }

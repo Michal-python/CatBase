@@ -7,10 +7,8 @@ import cat.michal.catbase.common.auth.PasswordCredentials;
 import cat.michal.catbase.common.converter.StringMessageConverter;
 import cat.michal.catbase.common.message.Message;
 import cat.michal.catbase.server.CatBaseServer;
-import cat.michal.catbase.server.auth.UserRegistry;
 import cat.michal.catbase.server.defaultImpl.DefaultQueue;
 import cat.michal.catbase.server.defaultImpl.DirectExchange;
-import cat.michal.catbase.server.exchange.ExchangeRegistry;
 import org.junit.jupiter.api.*;
 
 import java.util.List;
@@ -25,8 +23,8 @@ public class CatBaseConverterTest {
     @BeforeAll
     void setup() throws InterruptedException {
         server = new CatBaseServer(3020);
-        UserRegistry.registerUser("user15", "password");
-        ExchangeRegistry.register(new DirectExchange("exchange15", List.of(
+        server.getUserManager().registerUser("user15", "password");
+        server.getExchangeManager().register(new DirectExchange("exchange15", List.of(
                 new DefaultQueue(200, "stringQueue")
         )));
         new Thread(server::startServer,"Server-Thread").start();

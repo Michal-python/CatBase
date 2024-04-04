@@ -6,12 +6,9 @@ import cat.michal.catbase.client.message.MessageHandler;
 import cat.michal.catbase.common.auth.PasswordCredentials;
 import cat.michal.catbase.common.message.Message;
 import cat.michal.catbase.server.CatBaseServer;
-import cat.michal.catbase.server.auth.UserRegistry;
 import cat.michal.catbase.server.defaultImpl.DefaultQueue;
 import cat.michal.catbase.server.defaultImpl.DirectExchange;
-import cat.michal.catbase.server.exchange.ExchangeRegistry;
 import org.junit.jupiter.api.*;
-
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -27,9 +24,9 @@ public class CatBaseUnsubscribeTest {
     @BeforeAll
     void setup() throws InterruptedException {
         server = new CatBaseServer(8000);
-        UserRegistry.registerUser("prod_n", "password");
-        UserRegistry.registerUser("recv_n", "password");
-        ExchangeRegistry.register(new DirectExchange("c", List.of(
+        server.getUserManager().registerUser("prod_n", "password");
+        server.getUserManager().registerUser("recv_n", "password");
+        server.getExchangeManager().register(new DirectExchange("c", List.of(
                 new DefaultQueue(999, "a")
         )));
         new Thread(server::startServer,"Server-Thread").start();

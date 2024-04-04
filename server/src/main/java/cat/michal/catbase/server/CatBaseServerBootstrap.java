@@ -2,12 +2,10 @@ package cat.michal.catbase.server;
 
 import cat.michal.catbase.common.CatBaseConstants;
 import cat.michal.catbase.common.exception.CatBaseException;
-import cat.michal.catbase.server.auth.UserRegistry;
 import cat.michal.catbase.server.config.ConfigurationDeserializer;
 import cat.michal.catbase.server.config.entities.UserConfigurationEntity;
 import cat.michal.catbase.server.defaultImpl.DefaultQueue;
 import cat.michal.catbase.server.defaultImpl.DirectExchange;
-import cat.michal.catbase.server.exchange.ExchangeRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,7 +30,7 @@ public class CatBaseServerBootstrap {
             if(user.login.trim().isEmpty() || user.password.trim().isEmpty()) {
                 throw new CatBaseException("You need to set proper login and password for users");
             }
-            UserRegistry.registerUser(user.login, user.password);
+            server.getUserManager().registerUser(user.login, user.password);
         }
 
         var queues = Arrays.stream(ConfigurationDeserializer.instance.queues)
@@ -50,7 +48,7 @@ public class CatBaseServerBootstrap {
                         throw new CatBaseException("Invalid exchange type in configuration");
                     }
                 }
-        ).forEach(ExchangeRegistry::register);
+        ).forEach(server.getExchangeManager()::register);
 
 
         new Thread(server::startServer,"Server-Thread").start();

@@ -6,10 +6,8 @@ import cat.michal.catbase.client.message.MessageHandler;
 import cat.michal.catbase.common.auth.PasswordCredentials;
 import cat.michal.catbase.common.message.Message;
 import cat.michal.catbase.server.CatBaseServer;
-import cat.michal.catbase.server.auth.UserRegistry;
 import cat.michal.catbase.server.defaultImpl.DefaultQueue;
 import cat.michal.catbase.server.defaultImpl.DirectExchange;
-import cat.michal.catbase.server.exchange.ExchangeRegistry;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -28,9 +26,9 @@ public class CatBaseMessagingTest {
     @BeforeAll
     static void setup() throws InterruptedException {
         server = new CatBaseServer(6969);
-        UserRegistry.registerUser("prod", "password");
-        UserRegistry.registerUser("recv", "password");
-        ExchangeRegistry.register(new DirectExchange("b", List.of(
+        server.getUserManager().registerUser("prod", "password");
+        server.getUserManager().registerUser("recv", "password");
+        server.getExchangeManager().register(new DirectExchange("b", List.of(
                 new DefaultQueue(999, "ab")
         )));
         new Thread(server::startServer,"Server-Thread").start();

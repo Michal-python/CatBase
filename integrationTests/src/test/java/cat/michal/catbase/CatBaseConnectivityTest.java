@@ -3,7 +3,6 @@ package cat.michal.catbase;
 import cat.michal.catbase.client.CatBaseClient;
 import cat.michal.catbase.common.auth.PasswordCredentials;
 import cat.michal.catbase.server.CatBaseServer;
-import cat.michal.catbase.server.auth.UserRegistry;
 import org.junit.jupiter.api.*;
 
 import java.util.List;
@@ -15,7 +14,7 @@ public class CatBaseConnectivityTest {
     @BeforeAll
     void setup() throws InterruptedException {
         server = new CatBaseServer(8000);
-        UserRegistry.registerUser("user", "password");
+        server.getUserManager().registerUser("user", "password");
         new Thread(server::startServer,"Server-Thread").start();
         Thread.sleep(600);
         client = new CatBaseClient(new PasswordCredentials("user", "password"), List.of());

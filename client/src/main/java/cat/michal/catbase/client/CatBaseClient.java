@@ -1,9 +1,7 @@
 package cat.michal.catbase.client;
 
 import cat.michal.catbase.client.message.MessageHandler;
-import cat.michal.catbase.common.auth.AuthCredentials;
 import cat.michal.catbase.common.converter.AbstractMessageConverter;
-import cat.michal.catbase.common.converter.DefaultMessageConverter;
 import cat.michal.catbase.common.data.ListKeeper;
 import cat.michal.catbase.common.exception.CatBaseException;
 import cat.michal.catbase.common.message.Message;
@@ -12,81 +10,141 @@ import cat.michal.catbase.common.packet.PacketType;
 import cat.michal.catbase.common.packet.clientBound.ErrorPacket;
 import cat.michal.catbase.common.packet.serverBound.QueueSubscribePacket;
 import cat.michal.catbase.common.packet.serverBound.QueueUnsubscribePacket;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @SuppressWarnings("all")
-public class CatBaseClient implements BaseClient {
-    private CatBaseClientConnection socket;
-    private final AuthCredentials credentials;
-    private final List<MessageHandler> handlers;
-    private final List<ReceivedHook<Message>> receivedResponses;
-    private final List<ReceivedHook<ErrorPacket>> receivedAcknowledgements;
-    private final AbstractMessageConverter abstractMessageConverter;
-    private static final AtomicInteger threadId = new AtomicInteger(0);
+public class CatBaseClient {
+    private static final Logger                     logger = LoggerFactory.getLogger(CatBaseClient.class);
+    private static final AtomicInteger              threadId = new AtomicInteger(0);
+    private static final AtomicInteger              retries = new AtomicInteger(0);
+    private final CatBaseClientConfig               config;
+    private final List<ReceivedHook<Message>>       receivedResponses;
+    private final List<ReceivedHook<ErrorPacket>>   receivedAcknowledgements;
+    private volatile boolean                        shouldBeConnected;
+    private CatBaseClientConnection                 socket;
+    private final Queue<Message>                    outgoingQueue = new LinkedList<>();
 
-    public CatBaseClient(AuthCredentials credentials, List<MessageHandler> handlers) {
-        this(credentials, handlers, new DefaultMessageConverter());
-    }
+    CatBaseClient(CatBaseClientConfig config) {
+        this.config = config;
 
-    public CatBaseClient(AuthCredentials credentials, List<MessageHandler> handlers, AbstractMessageConverter abstractMessageConverter) {
-        this.credentials = credentials;
-        this.handlers = new ArrayList<>(handlers);
+        config.setHandlers(new ArrayList<>(config.getHandlers()));
         this.receivedResponses = ListKeeper.getInstance().createDefaultTimeList();
         this.receivedAcknowledgements = ListKeeper.getInstance().createDefaultTimeList();
-        this.abstractMessageConverter = abstractMessageConverter;
     }
 
     public void registerHandler(MessageHandler messageHandler) {
-        this.handlers.add(messageHandler);
-    }
-
-    @Override
-    public void connect(String addr, int port) throws CatBaseException {
-        if(socket != null) {
-            throw new CatBaseException("Client is already connected");
-        }
-
-        try {
-            Socket socket = new Socket(addr, port);
-            socket.setKeepAlive(true);
-            socket.setReuseAddress(true);
-            this.socket = new CatBaseClientConnection(new CatBaseConnection(UUID.randomUUID(), socket), ListKeeper.getInstance().createDefaultTimeList());
-
-            new Thread(new CatBaseClientCommunicationThread(this.socket, this.handlers, this.receivedResponses, this), "Client-Thread-" + threadId.incrementAndGet()).start();
-
-            UUID authPacketId = UUID.randomUUID();
-
-            sendAndReceiveAck(new Message(
-                    credentials.wrapCredentials().serialize(),
-                    authPacketId,
-                    PacketType.HANDSHAKE.getId(),
-                    null,
-                    null
-            )).get();
-
-        } catch (IOException e) {
-            throw new CatBaseException(e);
-        } catch (ExecutionException | InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+        this.config.getHandlers().add(messageHandler);
     }
 
     public List<ReceivedHook<ErrorPacket>> getReceivedAcknowledgements() {
         return receivedAcknowledgements;
     }
 
-    @Override
+    AbstractMessageConverter getConverter() {
+        return config.getAbstractMessageConverter();
+    }
+
+    private Runnable onClientConnectionEnd() {
+        return () -> {
+            logger.debug("Connection with server %s:%s dropped".formatted(
+                    config.getAddress().getHostAddress(), config.getPort()
+            ));
+            if(this.shouldBeConnected) {
+                if(retries.get() > 0) {
+                    try {
+                        config.getRetryInterval().sleep(config.getRetryIntervalCount());
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+
+                if(retries.incrementAndGet() > config.getMaxRetriesCount()) {
+                    retries.set(0);
+                    throw new CatBaseException("Failed to connect to server %s on port %s after %s retries".formatted(
+                            config.getAddress().getHostAddress(), config.getPort(), config.getMaxRetriesCount()
+                    ));
+                }
+                logger.info("Retrying to connect to server %s:%s".formatted(
+                        config.getAddress().getHostAddress(), config.getPort()
+                ));
+
+                this.connectInternal();
+            }
+        };
+    }
+
+    private void connectInternal() {
+        try {
+            Socket socket = new Socket(this.config.getAddress(), this.config.getPort());
+
+            socket.setKeepAlive(true);
+            socket.setReuseAddress(true);
+            this.socket = new CatBaseClientConnection(
+                    new CatBaseConnection(UUID.randomUUID(), socket),
+                    ListKeeper.getInstance().createDefaultTimeList()
+            );
+
+            new Thread(new CatBaseClientCommunicationThread(this.socket,
+                    this.config.getHandlers(),
+                    this.receivedResponses,
+                    this,
+                    this.onClientConnectionEnd()), "Client-Thread-" + threadId.incrementAndGet()).start();
+
+
+            sendAndReceiveAck(new Message(
+                    config.getCredentials().wrapCredentials().serialize(),
+                    UUID.randomUUID(),
+                    PacketType.HANDSHAKE.getId(),
+                    null,
+                    null
+            )).get();
+            logger.info("Connected with " + config.getAddress().getHostAddress() + ":" + config.getPort());
+            retries.set(0);
+
+            synchronized (outgoingQueue) {
+                if (outgoingQueue.size() > 0) {
+                    logger.info("Resending " + outgoingQueue.size() + " packets");
+                    Message message;
+                    while((message = outgoingQueue.poll()) != null) {
+                        if(!this.socket.sendPacket(message)) {
+                            outgoingQueue.add(message);
+                            onClientConnectionEnd().run();
+                            break;
+                        }
+                    }
+                }
+            }
+
+
+        } catch (IOException | ExecutionException | InterruptedException e) {
+            logger.warn("Connection failed due to exception: " + e.getMessage());
+            onClientConnectionEnd().run();
+        }
+    }
+
+    public void connect() throws CatBaseException {
+        if(this.isConnected() || this.shouldBeConnected) {
+            throw new CatBaseException("Client is already connected");
+        }
+
+        this.shouldBeConnected = true;
+        connectInternal();
+    }
+
     public void disconnect() throws CatBaseException {
         try {
-            this.socket.socket().close();
+            if(this.socket != null) {
+                this.socket.socket().close();
+            }
+            this.shouldBeConnected = false;
             this.socket = null;
         } catch (IOException e) {
             throw new CatBaseException(e);
@@ -98,10 +156,6 @@ public class CatBaseClient implements BaseClient {
             return false;
         }
         return this.socket.socket().isOpen();
-    }
-
-    public AbstractMessageConverter getConverter() {
-        return abstractMessageConverter;
     }
 
     public boolean subscribe(String queueName) {
@@ -143,33 +197,44 @@ public class CatBaseClient implements BaseClient {
             future.complete(msg);
         }));
 
-        socket.sendPacket(message);
+        this.sendMessage(message);
 
         return future;
     }
 
     public void send(Message message) {
-        this.socket.sendPacket(message);
+        this.sendMessage(message);
     }
 
     public <T> void convertAndSend(T message, String exchangeName, String routingKey) {
         try {
-            Message newMessage = abstractMessageConverter.encode(message);
+            Message newMessage = config.getAbstractMessageConverter().encode(message);
             newMessage.setExchangeName(exchangeName);
             newMessage.setRoutingKey(routingKey);
 
-            this.socket.sendPacket(newMessage);
+
+            this.sendMessage(newMessage);
         } catch (Exception e) {
             throw new CatBaseException(e);
         }
     }
 
-    public <T> CompletableFuture<T> convertSendAndReceive(T message, String exchangeName, String routingKey) {
+    public <T> CompletableFuture<T> convertSendAndReceiveAsType(T message, String exchangeName, String routingKey) {
+        return convertSendAndReceive(message, exchangeName, routingKey).thenApply((m) -> {
+            try {
+                return (T) getConverter().decode(m);
+            } catch (Exception e) {
+                throw new CatBaseException(e);
+            }
+        });
+    }
+
+    public <T> CompletableFuture<Message> convertSendAndReceive(T message, String exchangeName, String routingKey) {
         CompletableFuture<Message> future = new CompletableFuture<>();
         UUID hookId = UUID.randomUUID();
         Message newMessage = null;
         try {
-            newMessage = abstractMessageConverter.encode(message);
+            newMessage = config.getAbstractMessageConverter().encode(message);
             newMessage.setExchangeName(exchangeName);
             newMessage.setRoutingKey(routingKey);
         } catch (Exception e) {
@@ -181,14 +246,10 @@ public class CatBaseClient implements BaseClient {
             future.complete(msg);
         }));
 
-        socket.sendPacket(newMessage.setShouldRespond(true));
-        return future.thenApply((m) -> {
-            try {
-                return (T) getConverter().decode(m);
-            } catch (Exception e) {
-                throw new CatBaseException(e);
-            }
-        });
+
+        this.sendMessage(newMessage.setShouldRespond(true));
+
+        return future;
     }
 
     public CompletableFuture<Message> sendAndReceive(Message message) {
@@ -200,7 +261,26 @@ public class CatBaseClient implements BaseClient {
             future.complete(msg);
         }));
 
-        socket.sendPacket(message.setShouldRespond(true));
+        sendMessage(message.setShouldRespond(true));
         return future;
+    }
+
+    private void sendMessage(Message message) {
+        synchronized(outgoingQueue) {
+            if (!socket.sendPacket(message)) {
+                outgoingQueue.add(message);
+                onClientConnectionEnd().run();
+            }
+        }
+    }
+
+    public <T> CompletableFuture<T> sendAndReceiveAsType(Message message, Class<T> ignored) {
+        return sendAndReceive(message).thenApply((m) -> {
+            try {
+                return (T) getConverter().decode(m);
+            } catch (Exception e) {
+                throw new CatBaseException(e);
+            }
+        });
     }
 }

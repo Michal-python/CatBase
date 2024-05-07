@@ -1,6 +1,7 @@
 package cat.michal.catbase;
 
 import cat.michal.catbase.client.CatBaseClient;
+import cat.michal.catbase.client.CatBaseClientBuilder;
 import cat.michal.catbase.client.message.MessageHandleResult;
 import cat.michal.catbase.client.message.MessageHandler;
 import cat.michal.catbase.common.auth.PasswordCredentials;
@@ -11,6 +12,8 @@ import cat.michal.catbase.server.defaultImpl.DefaultQueue;
 import cat.michal.catbase.server.defaultImpl.DirectExchange;
 import org.junit.jupiter.api.*;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
@@ -21,7 +24,7 @@ public class CatBaseConverterTest {
     CatBaseClient client;
 
     @BeforeAll
-    void setup() throws InterruptedException {
+    void setup() throws InterruptedException, UnknownHostException {
         server = new CatBaseServer(3020);
         server.getUserManager().registerUser("user15", "password");
         server.getExchangeManager().register(new DirectExchange("exchange15", List.of(
@@ -29,7 +32,12 @@ public class CatBaseConverterTest {
         )));
         new Thread(server::startServer,"Server-Thread").start();
         Thread.sleep(600);
-        client = new CatBaseClient(new PasswordCredentials("user15", "password"), List.of(), new StringMessageConverter());
+        client = CatBaseClientBuilder.newBuilder()
+                .messageConverter(new StringMessageConverter())
+                .port(3020)
+                .credentials(new PasswordCredentials("user15", "password"))
+                .address(InetAddress.getLocalHost())
+                .build();
     }
 
 
@@ -41,7 +49,7 @@ public class CatBaseConverterTest {
 
     @Test
     void testSimpleConnection() throws InterruptedException {
-        client.connect("127.0.0.1", 3020);
+        client.connect();
         try {
             Thread.sleep(1500);
         } catch (InterruptedException ignored) {

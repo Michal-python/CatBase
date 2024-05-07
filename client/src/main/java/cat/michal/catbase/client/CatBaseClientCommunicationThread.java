@@ -13,7 +13,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.List;
 
 public class CatBaseClientCommunicationThread<T> implements Runnable {
@@ -24,22 +23,28 @@ public class CatBaseClientCommunicationThread<T> implements Runnable {
     private final ErrorPacketHandler errorPacketHandler;
     private final List<ReceivedHook<Message>> receivedResponses;
     private final AbstractMessageConverter<T> converter;
+    private final Runnable onClientEndRunnable;
+    private final CatBaseClient client;
 
     @SuppressWarnings("unchecked")
-    public CatBaseClientCommunicationThread(CatBaseClientConnection socket, List<MessageHandler<T>> handlers, List<ReceivedHook<Message>> receivedResponses, CatBaseClient client) {
+    public CatBaseClientCommunicationThread(CatBaseClientConnection socket,
+                                            List<MessageHandler<T>> handlers,
+                                            List<ReceivedHook<Message>> receivedResponses,
+                                            CatBaseClient client,
+                                            Runnable onClientEndRunnable) {
         this.socket = socket;
         this.handlers = handlers;
         this.acknowledgementHandler = new AcknowledgementHandler(socket, client);
         this.errorPacketHandler = new ErrorPacketHandler(client);
         this.receivedResponses = receivedResponses;
         this.converter = client.getConverter();
+        this.onClientEndRunnable = onClientEndRunnable;
+        this.client = client;
     }
 
     public void endConnection() {
-        try {
-            this.socket.socket().close();
-        } catch (IOException ignored) {
-        }
+        client.disconnect();
+        onClientEndRunnable.run();
         Thread.currentThread().interrupt();
     }
 

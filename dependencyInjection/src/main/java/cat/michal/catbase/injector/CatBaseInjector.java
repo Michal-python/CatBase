@@ -16,7 +16,7 @@ public class CatBaseInjector implements Injector {
 
     private CatBaseInjector(List<Dependency<?>> dependencies, String packagePath) {
         this.dependencies = dependencies;
-        this.classes = ClassFinder.findAllClasses(packagePath).stream().toList();
+        this.classes = ClassFinder.findAllClasses(packagePath);
 
         this.registerInjectables();
     }

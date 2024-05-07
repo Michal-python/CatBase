@@ -22,13 +22,15 @@ public class CatBaseServerCommunicationThread implements Runnable {
     private static final Logger logger = LoggerFactory.getLogger(CatBaseServerCommunicationThread.class);
     private final CatBaseConnection client;
     private final EventDispatcher eventDispatcher;
-    private final Injector procedureInjector;
+    private final ExchangeDetermineProcedure exchangeDetermineProcedure;
+    private final InternalMessageProcedure internalMessageProcedure;
     private volatile boolean verified = false;
 
     public CatBaseServerCommunicationThread(@NotNull CatBaseConnection client, EventDispatcher eventDispatcher, Injector procedureInjector) {
         this.client = client;
         this.eventDispatcher = eventDispatcher;
-        this.procedureInjector = procedureInjector;
+        this.exchangeDetermineProcedure = procedureInjector.getInstance(ExchangeDetermineProcedure.class);
+        this.internalMessageProcedure = procedureInjector.getInstance(InternalMessageProcedure.class);
     }
 
     public CatBaseConnection getClient() {
@@ -77,7 +79,7 @@ public class CatBaseServerCommunicationThread implements Runnable {
 
             logger.debug("Packet received {} from client {}", message.toString(), client.getId());
 
-            switch (procedureInjector.getInstance(InternalMessageProcedure.class).proceed(message, this)) {
+            switch (internalMessageProcedure.proceed(message, this)) {
                 case CONTINUE -> { }
                 case DO_NOT_CONTINUE -> {
                     return true;
@@ -87,7 +89,7 @@ public class CatBaseServerCommunicationThread implements Runnable {
                 }
             }
 
-            Exchange exchange = procedureInjector.getInstance(ExchangeDetermineProcedure.class).proceed(message);
+            Exchange exchange = exchangeDetermineProcedure.proceed(message);
 
             if (exchange == null) {
                 client.sendError(

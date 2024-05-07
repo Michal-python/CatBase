@@ -1,6 +1,7 @@
 package cat.michal.catbase;
 
 import cat.michal.catbase.client.CatBaseClient;
+import cat.michal.catbase.client.CatBaseClientBuilder;
 import cat.michal.catbase.client.message.MessageHandleResult;
 import cat.michal.catbase.client.message.MessageHandler;
 import cat.michal.catbase.common.auth.PasswordCredentials;
@@ -13,6 +14,8 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -25,7 +28,7 @@ public class CatBaseSendAndReceiveTest {
     static CatBaseClient receiver;
 
     @BeforeAll
-    static void setup() throws InterruptedException {
+    static void setup() throws InterruptedException, UnknownHostException {
         server = new CatBaseServer(3273);
         server.getUserManager().registerUser("prod_2243", "password");
         server.getUserManager().registerUser("recv_2243", "password");
@@ -34,8 +37,16 @@ public class CatBaseSendAndReceiveTest {
         )));
         new Thread(server::startServer,"Server-Thread").start();
         Thread.sleep(600);
-        producer = new CatBaseClient(new PasswordCredentials("prod_2243", "password"), List.of());
-        receiver = new CatBaseClient(new PasswordCredentials("recv_2243", "password"), List.of());
+        producer = CatBaseClientBuilder.newBuilder()
+                .address(InetAddress.getLocalHost())
+                .port(3273)
+                .credentials(new PasswordCredentials("prod_2243", "password"))
+                .build();
+        receiver = CatBaseClientBuilder.newBuilder()
+                .address(InetAddress.getLocalHost())
+                .port(3273)
+                .credentials(new PasswordCredentials("recv_2243", "password"))
+                .build();
     }
 
 
@@ -50,12 +61,12 @@ public class CatBaseSendAndReceiveTest {
     void testSimpleMessage() throws InterruptedException, ExecutionException {
         CountDownLatch latch = new CountDownLatch(1);
         new Thread(() -> {
-            producer.connect("127.0.0.1", 3273);
+            producer.connect();
             latch.countDown();
         }).start();
 
         latch.await();
-        receiver.connect("127.0.0.1", 3273);
+        receiver.connect();
 
         receiver.subscribe("ab_2243");
 

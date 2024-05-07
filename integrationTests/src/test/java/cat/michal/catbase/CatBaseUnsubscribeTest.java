@@ -1,6 +1,7 @@
 package cat.michal.catbase;
 
 import cat.michal.catbase.client.CatBaseClient;
+import cat.michal.catbase.client.CatBaseClientBuilder;
 import cat.michal.catbase.client.message.MessageHandleResult;
 import cat.michal.catbase.client.message.MessageHandler;
 import cat.michal.catbase.common.auth.PasswordCredentials;
@@ -9,6 +10,9 @@ import cat.michal.catbase.server.CatBaseServer;
 import cat.michal.catbase.server.defaultImpl.DefaultQueue;
 import cat.michal.catbase.server.defaultImpl.DirectExchange;
 import org.junit.jupiter.api.*;
+
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -22,7 +26,7 @@ public class CatBaseUnsubscribeTest {
     CatBaseClient receiver;
 
     @BeforeAll
-    void setup() throws InterruptedException {
+    void setup() throws InterruptedException, UnknownHostException {
         server = new CatBaseServer(8000);
         server.getUserManager().registerUser("prod_n", "password");
         server.getUserManager().registerUser("recv_n", "password");
@@ -31,8 +35,16 @@ public class CatBaseUnsubscribeTest {
         )));
         new Thread(server::startServer,"Server-Thread").start();
         Thread.sleep(600);
-        producer = new CatBaseClient(new PasswordCredentials("prod_n", "password"), List.of());
-        receiver = new CatBaseClient(new PasswordCredentials("recv_n", "password"), List.of());
+        producer = CatBaseClientBuilder.newBuilder()
+                .port(8000)
+                .address(InetAddress.getLocalHost())
+                .credentials(new PasswordCredentials("prod_n", "password"))
+                .build();
+        receiver = CatBaseClientBuilder.newBuilder()
+                .port(8000)
+                .address(InetAddress.getLocalHost())
+                .credentials(new PasswordCredentials("recv_n", "password"))
+                .build();
     }
 
 
@@ -47,12 +59,12 @@ public class CatBaseUnsubscribeTest {
     void testUnsubscribingToQueue() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         new Thread(() -> {
-            producer.connect("127.0.0.1", 8000);
+            producer.connect();
             latch.countDown();
         }).start();
 
         latch.await();
-        receiver.connect("127.0.0.1", 8000);
+        receiver.connect();
 
         receiver.subscribe("a");
 

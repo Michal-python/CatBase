@@ -1,6 +1,7 @@
 package cat.michal.catbase;
 
 import cat.michal.catbase.client.CatBaseClient;
+import cat.michal.catbase.client.CatBaseClientBuilder;
 import cat.michal.catbase.client.message.MessageHandleResult;
 import cat.michal.catbase.client.message.MessageHandler;
 import cat.michal.catbase.common.auth.PasswordCredentials;
@@ -13,6 +14,8 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -24,7 +27,7 @@ public class CatBaseMessagingTest {
     static CatBaseClient receiver;
 
     @BeforeAll
-    static void setup() throws InterruptedException {
+    static void setup() throws InterruptedException, UnknownHostException {
         server = new CatBaseServer(6969);
         server.getUserManager().registerUser("prod", "password");
         server.getUserManager().registerUser("recv", "password");
@@ -33,8 +36,16 @@ public class CatBaseMessagingTest {
         )));
         new Thread(server::startServer,"Server-Thread").start();
         Thread.sleep(600);
-        producer = new CatBaseClient(new PasswordCredentials("prod", "password"), List.of());
-        receiver = new CatBaseClient(new PasswordCredentials("recv", "password"), List.of());
+        producer = CatBaseClientBuilder.newBuilder()
+                .address(InetAddress.getLocalHost())
+                .port(6969)
+                .credentials(new PasswordCredentials("prod", "password"))
+                .build();
+        receiver = CatBaseClientBuilder.newBuilder()
+                .address(InetAddress.getLocalHost())
+                .port(6969)
+                .credentials(new PasswordCredentials("recv", "password"))
+                .build();
     }
 
 
@@ -49,12 +60,12 @@ public class CatBaseMessagingTest {
     void testSimpleMessage() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         new Thread(() -> {
-            producer.connect("127.0.0.1", 6969);
+            producer.connect();
             latch.countDown();
         }).start();
 
         latch.await();
-        receiver.connect("127.0.0.1", 6969);
+        receiver.connect();
 
         receiver.subscribe("ab");
 

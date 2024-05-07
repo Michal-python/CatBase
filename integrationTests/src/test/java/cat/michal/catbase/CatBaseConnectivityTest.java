@@ -8,7 +8,6 @@ import org.junit.jupiter.api.*;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.List;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class CatBaseConnectivityTest {
     CatBaseServer server;

@@ -48,7 +48,7 @@ public class CatBaseClient {
         return receivedAcknowledgements;
     }
 
-    AbstractMessageConverter getConverter() {
+    public AbstractMessageConverter getConverter() {
         return config.getAbstractMessageConverter();
     }
 

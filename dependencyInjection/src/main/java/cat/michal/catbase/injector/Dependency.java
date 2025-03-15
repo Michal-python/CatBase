@@ -1,5 +1,6 @@
 package cat.michal.catbase.injector;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,16 +19,28 @@ public class Dependency<T> {
     private final Class<T> clazz;
     private final List<Dependency<?>> depends;
     private T instance;
+    private final Method provideMethod;
+    private final Class<?> containingClass;
 
-    public Dependency(String name, Class<T> clazz, T instance) {
+    public Dependency(String name, Class<T> clazz, T instance, Method provideMethod, Class<?> containingClass) {
         this.name = name;
         this.clazz = clazz;
         this.instance = instance;
+        this.provideMethod = provideMethod;
         this.depends = new ArrayList<>();
+        this.containingClass = containingClass;
     }
 
     public Class<?> getClazz() {
         return clazz;
+    }
+
+    public Method getProvideMethod() {
+        return provideMethod;
+    }
+
+    public Class<?> getContainingClass() {
+        return containingClass;
     }
 
     public <D> void addDependency(Dependency<D> dependency) {

@@ -4,6 +4,8 @@ import cat.michal.catbase.injector.annotations.*;
 import cat.michal.catbase.injector.exceptions.InjectorException;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.*;
 
@@ -27,6 +29,7 @@ public class CatBaseInjector implements Injector {
         if(clazz.isEnum()) {
             throw new InjectorException("Enums are not allowed");
         }
+
         if(clazz.isInterface() || Modifier.isAbstract(clazz.getModifiers())) {
             List<? extends Class<? extends T>> implementations = classes.stream()
                     .filter(clazz::isAssignableFrom)
@@ -64,6 +67,16 @@ public class CatBaseInjector implements Injector {
         return Collections.unmodifiableList(dependencies);
     }
 
+
+    @SuppressWarnings("unchecked")
+    public <T> T provideInstance(Method method, Class<?> containingClass) {
+        try {
+            return (T) method.invoke(getInstance(containingClass), Arrays.stream(method.getParameterTypes()).map(this::getInstance).toArray());
+        } catch (IllegalAccessException | InvocationTargetException e) {
+            throw new InjectorException("Error while invoking " + method, e);
+        }
+    }
+
     @Override
     public void registerInjectables() {
         classes.stream()
@@ -79,10 +92,21 @@ public class CatBaseInjector implements Injector {
                         return;
                     }
                     this.registerDependency(clazz);
+
+                    Arrays.stream(clazz.getMethods())
+                            .filter(method -> method.isAnnotationPresent(Provide.class))
+                            .forEach(method -> {
+                                if(method.getReturnType().isAnnotationPresent(Component.class)) {
+                                    throw new InjectorException("Provide methods annotated with @Component are not allowed");
+                                }
+                                registerDependency(method.getReturnType(), method, clazz);
+                            });
                 });
 
         //check for nested dependencies
-        dependencies.forEach(dependency -> Arrays.stream(dependency.getClazz().getDeclaredFields())
+        dependencies.stream()
+                .filter(dependency -> dependency.getProvideMethod() == null)
+                .forEach(dependency -> Arrays.stream(dependency.getClazz().getDeclaredFields())
                 .filter(field -> !field.isAnnotationPresent(Exclude.class))
                 .forEach(field -> {
                     Class<?> fieldType = field.getType();
@@ -103,11 +127,16 @@ public class CatBaseInjector implements Injector {
         List<Dependency<?>> sortedDependencies = new ArrayList<>();
         dependencies.forEach(dependency -> initializeDependency(dependency, sortedDependencies));
 
-
-
         //all dependencies initialized at this point
         sortedDependencies.forEach(dependency -> {
-            dependency.setInstance(createInstance(dependency.getClazz()));
+            Object instance;
+            if(dependency.getProvideMethod() == null || dependency.getContainingClass() == null) {
+                instance = createInstance(dependency.getClazz());
+            } else {
+                instance = provideInstance(dependency.getProvideMethod(), dependency.getContainingClass());
+            }
+
+            dependency.setInstance(instance);
             injectField(dependency.getInstance());
 
             Arrays.stream(dependency.getClazz().getMethods())
@@ -229,7 +258,7 @@ public class CatBaseInjector implements Injector {
         }
     }
 
-    private <T> void registerDependency(Class<T> clazz) {
+    private <T> void registerDependency(Class<T> clazz, Method provideMethod, Class<?> containingClass) {
         if(this.containsByClass(clazz)) {
             throw new InjectorException("Class " + clazz.getName() + " is already registered");
         }
@@ -237,9 +266,15 @@ public class CatBaseInjector implements Injector {
         if(containsByName(injectableName)) {
             throw new InjectorException("Class with component name " + injectableName + " is already registered");
         }
-        Dependency<T> dependency = new Dependency<>(injectableName, clazz, null);
+        Dependency<T> dependency = new Dependency<>(injectableName, clazz, null, provideMethod, containingClass);
         this.dependencies.add(dependency);
     }
+
+
+    private <T> void registerDependency(Class<T> clazz) {
+        registerDependency(clazz, null, null);
+    }
+
     private <T> boolean containsByClass(Class<T> clazz) {
         return dependencies.stream().anyMatch(dependency -> dependency.getClazz().equals(clazz));
     }

@@ -27,6 +27,24 @@ public class CatBaseInjector implements Injector {
         return new Dependency<>(clazz.getSimpleName(), clazz, instance, null, null);
     }
 
+    @Override
+    public void destroy() {
+        this.dependencies.forEach(dependency -> {
+            Arrays.stream(dependency.getClazz().getMethods())
+                    .filter(method -> method.isAnnotationPresent(PreDestroy.class))
+                    .findAny()
+                    .ifPresent(method -> {
+                        try {
+                            method.invoke(dependency.getInstance());
+                        } catch (Exception e) {
+                            throw new InjectorException("Error while invoking pre destroy method " + method.getName(), e);
+                        }
+                    });
+        });
+
+        this.clearInjectables();
+    }
+
 
     @Override
     @SuppressWarnings("unchecked")

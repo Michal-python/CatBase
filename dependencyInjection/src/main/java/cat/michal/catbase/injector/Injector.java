@@ -9,6 +9,8 @@ import java.util.List;
  */
 public interface Injector {
 
+    void destroy();
+
     /**
      * Method for creating new instances of the provided class
      *

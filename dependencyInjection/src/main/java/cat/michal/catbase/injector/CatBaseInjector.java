@@ -16,12 +16,17 @@ public class CatBaseInjector implements Injector {
         this(new ArrayList<>(), packagePath);
     }
 
-    private CatBaseInjector(List<Dependency<?>> dependencies, String packagePath) {
-        this.dependencies = dependencies;
+    public CatBaseInjector(List<Dependency<?>> dependencies, String packagePath) {
+        this.dependencies = new ArrayList<>(dependencies);
         this.classes = ClassFinder.findAllClasses(packagePath);
 
         this.registerInjectables();
     }
+
+    public static <T> Dependency<T> createExternalDependency(T instance, Class<T> clazz) {
+        return new Dependency<>(clazz.getSimpleName(), clazz, instance, null, null);
+    }
+
 
     @Override
     @SuppressWarnings("unchecked")
@@ -128,7 +133,9 @@ public class CatBaseInjector implements Injector {
         dependencies.forEach(dependency -> initializeDependency(dependency, sortedDependencies));
 
         //all dependencies initialized at this point
-        sortedDependencies.forEach(dependency -> {
+        sortedDependencies.stream()
+                .filter(dependency -> dependency.getInstance() == null)
+                .forEach(dependency -> {
             Object instance;
             if(dependency.getProvideMethod() == null || dependency.getContainingClass() == null) {
                 instance = createInstance(dependency.getClazz());
@@ -262,7 +269,15 @@ public class CatBaseInjector implements Injector {
         if(this.containsByClass(clazz)) {
             throw new InjectorException("Class " + clazz.getName() + " is already registered");
         }
-        String injectableName = clazz.getAnnotation(Component.class) == null ? clazz.getSimpleName() : clazz.getAnnotation(Component.class).value();
+
+        String injectableName;
+        if(provideMethod == null) {
+            injectableName = clazz.getAnnotation(Component.class) == null ? clazz.getSimpleName() : clazz.getAnnotation(Component.class).value();
+        } else {
+            String provideName = provideMethod.getAnnotation(Provide.class).value();
+            injectableName = provideName.isEmpty() ? provideMethod.getName() : provideName;
+        }
+
         if(containsByName(injectableName)) {
             throw new InjectorException("Class with component name " + injectableName + " is already registered");
         }

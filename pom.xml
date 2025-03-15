@@ -6,7 +6,7 @@
 
     <groupId>cat.michal.catbase</groupId>
     <artifactId>CatBase</artifactId>
-    <version>1.5</version>
+    <version>1.6</version>
     <packaging>pom</packaging>
     <modules>
         <module>server</module>
@@ -17,7 +17,7 @@
     </modules>
 
     <properties>
-        <catbase.version>1.5</catbase.version>
+        <catbase.version>1.6</catbase.version>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
     </properties>

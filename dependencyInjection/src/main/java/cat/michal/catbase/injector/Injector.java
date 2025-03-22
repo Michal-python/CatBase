@@ -8,7 +8,9 @@ import java.util.List;
  * @author Michał
  */
 public interface Injector {
-
+    /**
+     * This method calls @PreDestroy methods on all dependencies
+     */
     void destroy();
 
     /**
@@ -26,7 +28,6 @@ public interface Injector {
      *
      * @return List of {@link Dependency}
      */
-    @SuppressWarnings("unused")
     List<Dependency<?>> getAll();
 
 
@@ -45,6 +46,14 @@ public interface Injector {
     <T> void injectField(T instance);
 
     /**
+     * Method that returns all implementations of provided abstraction layer
+     *
+     * @param clazz abstraction layer type
+     * @param <T> instance type
+     */
+    <T> List<T> getInstancesOfType(Class<T> clazz);
+
+    /**
      * Method that returns instance of an injectable component from dependency injection container
      *
      * @param clazz class type that will be returned
@@ -56,6 +65,5 @@ public interface Injector {
     /**
      * Method that clears all previously registered injectable components
      */
-    @SuppressWarnings("unused")
     void clearInjectables();
 }

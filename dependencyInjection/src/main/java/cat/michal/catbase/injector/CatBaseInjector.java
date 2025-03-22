@@ -12,13 +12,23 @@ import java.util.*;
 public class CatBaseInjector implements Injector {
     private final List<Dependency<?>> dependencies;
     private final List<Class<?>> classes;
+
+    public CatBaseInjector(Collection<String> packagePaths) {
+        this(new ArrayList<>(), packagePaths);
+    }
+
     public CatBaseInjector(String packagePath) {
-        this(new ArrayList<>(), packagePath);
+        this(new ArrayList<>(), List.of(packagePath));
     }
 
     public CatBaseInjector(List<Dependency<?>> dependencies, String packagePath) {
+        this(dependencies, List.of(packagePath));
+    }
+
+    public CatBaseInjector(List<Dependency<?>> dependencies, Collection<String> packagePaths) {
         this.dependencies = new ArrayList<>(dependencies);
-        this.classes = ClassFinder.findAllClasses(packagePath);
+        this.classes = new ArrayList<>();
+        packagePaths.forEach(packagePath -> this.classes.addAll(ClassFinder.findAllClasses(packagePath)));
 
         this.registerInjectables();
     }
@@ -226,6 +236,21 @@ public class CatBaseInjector implements Injector {
                         throw new InjectorException("Could not inject field " + field.getName(), e);
                     }
                 });
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> List<T> getInstancesOfType(Class<T> clazz) {
+        if(!clazz.isInterface() && !Modifier.isAbstract(clazz.getModifiers())) {
+            throw new InjectorException("Provided type is not an abstraction layer");
+        }
+        if(!clazz.isAnnotationPresent(Component.class)) {
+            throw new InjectorException("Provided type is not annotated with @Component");
+        }
+        return (List<T>) dependencies.stream()
+                .filter(dependency -> clazz.isAssignableFrom(dependency.getClazz()))
+                .map(Dependency::getInstance)
+                .toList();
     }
 
     @Override

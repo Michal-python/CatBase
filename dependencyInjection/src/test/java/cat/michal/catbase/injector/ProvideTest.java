@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
 import java.util.List;
+import java.util.logging.Logger;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class ProvideTest {
@@ -17,7 +18,7 @@ public class ProvideTest {
         this.injector = new CatBaseInjector(List.of(CatBaseInjector.createExternalDependency(
                 new cat.michal.catbase.injector.provideMock.TestInstance("!"),
                 cat.michal.catbase.injector.provideMock.TestInstance.class
-        )), "cat.michal.catbase.injector.provideMock");
+        ), CatBaseInjector.createExternalDependency(Logger.getLogger("Logger"), Logger.class)), "cat.michal.catbase.injector.provideMock");
     }
 
     @Test

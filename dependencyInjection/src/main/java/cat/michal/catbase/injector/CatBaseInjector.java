@@ -157,7 +157,8 @@ public class CatBaseInjector implements Injector {
 
         //check for nested dependencies
         dependencies.stream()
-                .filter(dependency -> dependency.getProvideMethod() == null)
+                // filter only dependencies that are needed for the dependency tree
+                .filter(dependency -> dependency.getProvideMethod() == null && dependency.getInstance() == null)
                 .forEach(dependency -> Arrays.stream(dependency.getClazz().getDeclaredFields())
                 .filter(field -> !field.isAnnotationPresent(Exclude.class))
                 .forEach(field -> {

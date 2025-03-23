@@ -14,21 +14,31 @@ import java.util.jar.JarFile;
 import java.util.stream.Collectors;
 
 public class ClassFinder {
-    public static List<Class<?>> findAllClasses(String packageName) {
+    private final ClassLoader classLoader;
+    
+    ClassFinder(ClassLoader classLoader) {
+        this.classLoader = classLoader;
+    }
+
+    ClassFinder() {
+        this(ClassLoader.getSystemClassLoader());
+    }
+
+    public List<Class<?>> findAllClasses(String packageName) {
         return findAllClassesPaths(packageName).stream()
-                .map(ClassFinder::getClass)
+                .map(this::getClass)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
     }
 
-    public static List<String> findAllClassesPaths(String packageName) {
-        URL resource = ClassLoader.getSystemClassLoader().getResource(packageName.replace('.', '/'));
+    public List<String> findAllClassesPaths(String packageName) {
+        URL resource = classLoader.getResource(packageName.replace('.', '/'));
         assert resource != null;
         if (resource.getProtocol().startsWith("jar")) {
             return enumerateJar(packageName, resource);
         }
 
-        InputStream stream = ClassLoader.getSystemClassLoader()
+        InputStream stream = classLoader
                 .getResourceAsStream(packageName.replace('.', '/'));
 
         assert stream != null;
@@ -46,7 +56,7 @@ public class ClassFinder {
         return classes;
     }
 
-    private static List<String> enumerateJar(String packageName, URL resource) {
+    private List<String> enumerateJar(String packageName, URL resource) {
         try {
             String[] parts = resource.toString().split("!/");
             String jarFilePath = parts[0].substring("jar:file:".length());
@@ -70,7 +80,7 @@ public class ClassFinder {
         }
     }
 
-    private static Class<?> getClass(String className) {
+    private Class<?> getClass(String className) {
         try {
             return Class.forName(className.substring(0, className.lastIndexOf('.')));
         } catch (ClassNotFoundException ignored) {

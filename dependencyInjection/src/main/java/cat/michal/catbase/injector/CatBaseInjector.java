@@ -14,21 +14,40 @@ public class CatBaseInjector implements Injector {
     private final List<Class<?>> classes;
 
     public CatBaseInjector(Collection<String> packagePaths) {
-        this(new ArrayList<>(), packagePaths);
+        this(new ArrayList<>(), packagePaths, null);
     }
 
     public CatBaseInjector(String packagePath) {
-        this(new ArrayList<>(), List.of(packagePath));
+        this(new ArrayList<>(), List.of(packagePath), null);
     }
 
     public CatBaseInjector(List<Dependency<?>> dependencies, String packagePath) {
-        this(dependencies, List.of(packagePath));
+        this(dependencies, List.of(packagePath), null);
     }
 
+    public CatBaseInjector(Collection<String> packagePaths, ClassLoader classLoader) {
+        this(new ArrayList<>(), packagePaths, classLoader);
+    }
+
+    public CatBaseInjector(String packagePath, ClassLoader classLoader) {
+        this(new ArrayList<>(), List.of(packagePath), classLoader);
+    }
+
+    public CatBaseInjector(List<Dependency<?>> dependencies, String packagePath, ClassLoader classLoader) {
+        this(dependencies, List.of(packagePath), classLoader);
+    }
+
+
     public CatBaseInjector(List<Dependency<?>> dependencies, Collection<String> packagePaths) {
+        this(dependencies, packagePaths, null);
+    }
+
+    public CatBaseInjector(List<Dependency<?>> dependencies, Collection<String> packagePaths, ClassLoader classLoader) {
         this.dependencies = new ArrayList<>(dependencies);
         this.classes = new ArrayList<>();
-        packagePaths.forEach(packagePath -> this.classes.addAll(ClassFinder.findAllClasses(packagePath)));
+        ClassFinder classFinder = classLoader == null ? new ClassFinder() : new ClassFinder(classLoader);
+
+        packagePaths.forEach(packagePath -> this.classes.addAll(classFinder.findAllClasses(packagePath)));
 
         this.registerInjectables();
     }

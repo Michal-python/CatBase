@@ -169,16 +169,12 @@ public class CatBaseInjector implements Injector {
                 // filter only dependencies that are needed for the dependency tree
                 .filter(dependency -> dependency.getProvideMethod() == null && dependency.getInstance() == null)
                 .forEach(dependency -> {
-                    Constructor<?> validConstructor = getConstructor(dependency);
-                    Arrays.stream(validConstructor.getParameterTypes())
-                                    .forEach(type -> {
-                                        dependencies.stream()
-                                                .filter(dep -> type.isAssignableFrom(dep.getClazz()))
-                                                .findFirst()
-                                                .ifPresent(dependency::addDependency);
-                                    });
-
-
+                    Optional<? extends Constructor<?>> validConstructor = getConstructor(dependency);
+                    validConstructor.ifPresent(constructor -> Arrays.stream(constructor.getParameterTypes())
+                            .forEach(type -> dependencies.stream()
+                                    .filter(dep -> type.isAssignableFrom(dep.getClazz()))
+                                    .findFirst()
+                                    .ifPresent(dependency::addDependency)));
 
                     Arrays.stream(dependency.getClazz().getDeclaredFields())
                             .filter(field -> field.isAnnotationPresent(Inject.class))
@@ -231,16 +227,16 @@ public class CatBaseInjector implements Injector {
     }
 
     @SuppressWarnings("unchecked")
-    private <T> Constructor<T> getConstructor(Dependency<T> dependency) {
-        return (Constructor<T>) Arrays.stream(dependency.getClazz().getConstructors())
+    private <T> Optional<Constructor<T>> getConstructor(Dependency<T> dependency) {
+        return Arrays.stream(dependency.getClazz().getConstructors())
                 .filter(constructorElement -> constructorElement.getParameterTypes().length == 0
                         || Arrays.stream(constructorElement.getParameterTypes())
                         .allMatch(element ->
                                 containsByClass(element) || (element.isInterface() && element.isAnnotationPresent(Component.class))
                         )
                 )
-                .findAny()
-                .orElseThrow(() -> new InjectorException("No constructors with valid parameters found for " + dependency.getClazz().getName()));
+                .map(constructor -> (Constructor<T>) constructor)
+                .findAny();
     }
 
     private void initializeDependency(Dependency<?> dependency, List<Dependency<?>> sortedDependencies) {
@@ -345,7 +341,8 @@ public class CatBaseInjector implements Injector {
     }
 
     private <T> T instantiate(Dependency<T> dependency) {
-        Constructor<T> constructor = getConstructor(dependency);
+        Constructor<T> constructor = getConstructor(dependency)
+                .orElseThrow(() -> new InjectorException("Could not find valid constructor for " + dependency.getClazz()));
 
         try {
             if(constructor.getParameterCount() == 0) {

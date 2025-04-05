@@ -8,6 +8,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class CatBaseInjector implements Injector {
     private final List<Dependency<?>> dependencies;
@@ -79,7 +80,7 @@ public class CatBaseInjector implements Injector {
     @SuppressWarnings("unchecked")
     public <T> T createInstance(Class<T> clazz) {
         if(clazz.isEnum()) {
-            throw new InjectorException("Enums are not allowed");
+            throw new InjectorException("Enums (" + clazz.getSimpleName() + ") are not supported");
         }
 
         if(clazz.isInterface() || Modifier.isAbstract(clazz.getModifiers())) {
@@ -88,7 +89,7 @@ public class CatBaseInjector implements Injector {
                     .map(classElement -> (Class<? extends T>) classElement)
                     .toList();
             if(implementations.isEmpty()) {
-                throw new InjectorException("No implementation found for abstraction layer " + clazz.getName());
+                throw new InjectorException("No matching dependency implementation for " + clazz.getName());
             }
 
             //if only one implementation - no need to look for primary implementations
@@ -99,10 +100,10 @@ public class CatBaseInjector implements Injector {
                     .filter(injectable -> injectable.isAnnotationPresent(Primary.class))
                     .toList();
             if(primaryImplementations.size() > 1) {
-                throw new InjectorException("More than one primary implementation of abstraction layer " + clazz.getName());
+                throw new InjectorException("More than one primary implementation for dependency " + clazz.getName());
             }
             if(primaryImplementations.isEmpty()) {
-                throw new InjectorException("No primary implementation found for abstraction layer " + clazz.getName());
+                throw new InjectorException("No primary implementation found for dependency " + clazz.getName());
             }
             return createInstance(primaryImplementations.get(0));
         }
@@ -149,24 +150,46 @@ public class CatBaseInjector implements Injector {
                             .filter(method -> method.isAnnotationPresent(Provide.class))
                             .forEach(method -> {
                                 if(method.getReturnType().isAnnotationPresent(Component.class)) {
-                                    throw new InjectorException("Provide methods annotated with @Component are not allowed");
+                                    throw new InjectorException("Provide method types annotated with @Component are not allowed");
                                 }
                                 registerDependency(method.getReturnType(), method, clazz);
                             });
                 });
 
+        //check for nested dependencies for provided instances
+        dependencies.stream().filter(dependency -> dependency.getProvideMethod() != null).forEach(dependency -> {
+           Dependency<?> containingDependency = dependencies.stream()
+                    .filter(containingClass -> containingClass.getClazz().equals(dependency.getContainingClass()))
+                    .findFirst()
+                    .orElseThrow(() -> new InjectorException("Dependency " + dependency.getContainingClass().getName() + " not found"));
+           dependency.addDependency(containingDependency);
+        });
         //check for nested dependencies
         dependencies.stream()
                 // filter only dependencies that are needed for the dependency tree
                 .filter(dependency -> dependency.getProvideMethod() == null && dependency.getInstance() == null)
-                .forEach(dependency -> Arrays.stream(dependency.getClazz().getDeclaredFields())
-                .filter(field -> !field.isAnnotationPresent(Exclude.class))
-                .forEach(field -> {
-                    Class<?> fieldType = field.getType();
-                    dependencies.stream()
-                            .filter(dep -> fieldType.isAssignableFrom(dep.getClazz()))
-                            .findFirst().ifPresent(dependency::addDependency);
-                }));
+                .forEach(dependency -> {
+                    Constructor<?> validConstructor = getConstructor(dependency);
+                    Arrays.stream(validConstructor.getParameterTypes())
+                                    .forEach(type -> {
+                                        dependencies.stream()
+                                                .filter(dep -> type.isAssignableFrom(dep.getClazz()))
+                                                .findFirst()
+                                                .ifPresent(dependency::addDependency);
+                                    });
+
+
+
+                    Arrays.stream(dependency.getClazz().getDeclaredFields())
+                            .filter(field -> field.isAnnotationPresent(Inject.class))
+                            .forEach(field -> {
+                                Class<?> fieldType = field.getType();
+                                dependencies.stream()
+                                        .filter(dep -> fieldType.isAssignableFrom(dep.getClazz()))
+                                        .findFirst()
+                                        .ifPresent(dependency::addDependency);
+                            });
+                });
 
         //check for circular dependencies
         Set<Dependency<?>> visited = new HashSet<>();
@@ -207,6 +230,19 @@ public class CatBaseInjector implements Injector {
         });
     }
 
+    @SuppressWarnings("unchecked")
+    private <T> Constructor<T> getConstructor(Dependency<T> dependency) {
+        return (Constructor<T>) Arrays.stream(dependency.getClazz().getConstructors())
+                .filter(constructorElement -> constructorElement.getParameterTypes().length == 0
+                        || Arrays.stream(constructorElement.getParameterTypes())
+                        .allMatch(element ->
+                                containsByClass(element) || (element.isInterface() && element.isAnnotationPresent(Component.class))
+                        )
+                )
+                .findAny()
+                .orElseThrow(() -> new InjectorException("No constructors with valid parameters found for " + dependency.getClazz().getName()));
+    }
+
     private void initializeDependency(Dependency<?> dependency, List<Dependency<?>> sortedDependencies) {
         if (!sortedDependencies.contains(dependency)) {
             dependency.getDepends().forEach(dep -> initializeDependency(dep, sortedDependencies));
@@ -216,7 +252,7 @@ public class CatBaseInjector implements Injector {
 
     private void checkCircularDependency(Dependency<?> dependency, Set<Dependency<?>> visited, Set<Dependency<?>> stack) {
         if (stack.contains(dependency)) {
-            throw new InjectorException("Circular dependency detected involving " + dependency.getClazz());
+            throw new InjectorException("Circular dependency detected involving " + stack.stream().map(clazz -> clazz.getClass().getSimpleName()).collect(Collectors.joining()));
         }
         if (!visited.contains(dependency)) {
             visited.add(dependency);
@@ -245,15 +281,15 @@ public class CatBaseInjector implements Injector {
                                     return dependency.getClazz().equals(field.getType()) || (!injectName.isEmpty() && injectName.equals(dependency.getName()));
                                 })
                                 .findFirst()
-                                .orElseThrow(() -> new InjectorException("Could not find injectable for field " + field.getName()))
+                                .orElseThrow(() -> new InjectorException("Could not find dependency of type + " + field.getType().getSimpleName() + " for field " + instance.getClass().getSimpleName() + "." + field.getName()))
                                 .getInstance();
                         if(toInject.getClass().equals(instance.getClass())) {
-                            throw new InjectorException("Could not inject field " + field.getName() + " into itself");
+                            throw new InjectorException("Could not inject field " + instance.getClass().getSimpleName() + "." + field.getName() + " into itself");
                         }
                         field.setAccessible(true);
                         field.set(instance, toInject);
                     } catch (IllegalAccessException e) {
-                        throw new InjectorException("Could not inject field " + field.getName(), e);
+                        throw new InjectorException("Could not inject field " + instance.getClass().getSimpleName() + "." + field.getName(), e);
                     }
                 });
     }
@@ -299,7 +335,7 @@ public class CatBaseInjector implements Injector {
         return ((T) dependencies.stream()
                 .filter(dependency -> dependency.getClazz().equals(clazz))
                 .findFirst()
-                .orElseThrow(() -> new InjectorException("Could not find injectable for class " + clazz.getName()))
+                .orElseThrow(() -> new InjectorException("Could not find dependency of type " + clazz.getName()))
                 .getInstance());
     }
 
@@ -308,15 +344,9 @@ public class CatBaseInjector implements Injector {
         this.dependencies.clear();
     }
 
-
-    @SuppressWarnings("unchecked")
     private <T> T instantiate(Dependency<T> dependency) {
-        Constructor<T> constructor = (Constructor<T>) Arrays.stream(dependency.getClazz().getConstructors())
-                .filter(constructorElement -> constructorElement.getParameterTypes().length == 0 || Arrays.stream(constructorElement.getParameterTypes())
-                        .allMatch(element -> containsByClass(element) || (element.isInterface() && element.isAnnotationPresent(Component.class)))
-                )
-                .findAny()
-                .orElseThrow(() -> new InjectorException("No matching constructor found for class " + dependency.getClazz().getName()));
+        Constructor<T> constructor = getConstructor(dependency);
+
         try {
             if(constructor.getParameterCount() == 0) {
                 return constructor.newInstance();
@@ -324,13 +354,13 @@ public class CatBaseInjector implements Injector {
 
             return constructor.newInstance(Arrays.stream(constructor.getParameterTypes()).map(this::getInstance).toArray());
         } catch (Exception exception) {
-            throw new InjectorException("Could not instantiate class " + dependency.getClazz().getName(), exception);
+            throw new InjectorException("Could not create instance of class " + dependency.getClazz().getName(), exception);
         }
     }
 
     private <T> void registerDependency(Class<T> clazz, Method provideMethod, Class<?> containingClass) {
         if(this.containsByClass(clazz)) {
-            throw new InjectorException("Class " + clazz.getName() + " is already registered");
+            throw new InjectorException("Duplicate dependency for type " + clazz.getName());
         }
 
         String injectableName;
@@ -342,7 +372,7 @@ public class CatBaseInjector implements Injector {
         }
 
         if(containsByName(injectableName)) {
-            throw new InjectorException("Class with component name " + injectableName + " is already registered");
+            throw new InjectorException("Duplicate component name " + injectableName);
         }
         Dependency<T> dependency = new Dependency<>(injectableName, clazz, null, provideMethod, containingClass);
         this.dependencies.add(dependency);

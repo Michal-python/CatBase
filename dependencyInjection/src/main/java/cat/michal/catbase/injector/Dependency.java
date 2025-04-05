@@ -1,8 +1,8 @@
 package cat.michal.catbase.injector;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  *
@@ -17,7 +17,7 @@ public class Dependency<T> {
 
     private final String name;
     private final Class<T> clazz;
-    private final List<Dependency<?>> depends;
+    private final Set<Dependency<?>> depends;
     private T instance;
     private final Method provideMethod;
     private final Class<?> containingClass;
@@ -27,7 +27,7 @@ public class Dependency<T> {
         this.clazz = clazz;
         this.instance = instance;
         this.provideMethod = provideMethod;
-        this.depends = new ArrayList<>();
+        this.depends = new HashSet<>();
         this.containingClass = containingClass;
     }
 
@@ -47,7 +47,7 @@ public class Dependency<T> {
         this.depends.add(dependency);
     }
 
-    public List<Dependency<?>> getDepends() {
+    public Set<Dependency<?>> getDepends() {
         return depends;
     }
 
@@ -62,5 +62,13 @@ public class Dependency<T> {
     @SuppressWarnings("unchecked")
     public void setInstance(Object instance) {
         this.instance = (T) instance;
+    }
+
+    @Override
+    public String toString() {
+        return "Dependency{" +
+                "class=" + clazz.getSimpleName() +
+                ", name='" + name + '\'' +
+                '}';
     }
 }

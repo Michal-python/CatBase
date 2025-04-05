@@ -6,7 +6,7 @@
     <parent>
         <groupId>cat.michal.catbase</groupId>
         <artifactId>CatBase</artifactId>
-        <version>1.8.1-fix</version>
+        <version>1.8.2</version>
     </parent>
 
     <groupId>cat.michal.catbase.injector</groupId>

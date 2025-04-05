@@ -1,2 +1,4 @@
 /target
 .idea
+server.yaml
+*/dependency-reduced-pom.xml

@@ -1,9 +1,9 @@
-package cat.michal.catbase.injector.multipleInstances;
+package cat.michal.catbase.injector.listInjection;
 
 import cat.michal.catbase.injector.annotations.Component;
 import cat.michal.catbase.injector.annotations.Primary;
 
-@Primary
 @Component
-public class SecondInstance implements InstanceHolder {
+@Primary
+public class ThirdImpl implements AbstractionLayer {
 }

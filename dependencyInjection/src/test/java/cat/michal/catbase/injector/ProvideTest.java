@@ -6,19 +6,13 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
-import java.util.List;
-import java.util.logging.Logger;
-
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class ProvideTest {
     private CatBaseInjector injector;
 
     @BeforeAll
     void setup() {
-        this.injector = new CatBaseInjector(List.of(CatBaseInjector.createExternalDependency(
-                new cat.michal.catbase.injector.provideMock.TestInstance("!"),
-                cat.michal.catbase.injector.provideMock.TestInstance.class
-        ), CatBaseInjector.createExternalDependency(Logger.getLogger("Logger"), Logger.class)), "cat.michal.catbase.injector.provideMock");
+        this.injector = new CatBaseInjector("cat.michal.catbase.injector.provideMock");
     }
 
     @Test

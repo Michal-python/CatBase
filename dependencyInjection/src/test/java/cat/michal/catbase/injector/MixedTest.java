@@ -16,11 +16,7 @@ public class MixedTest {
 
     @BeforeAll
     void setup() {
-        this.injector = new CatBaseInjector(List.of(
-                CatBaseInjector.createExternalDependency(String::toUpperCase, OuterDependency.class),
-                CatBaseInjector.createExternalDependency(Logger.getLogger("Logger"), Logger.class)
-        ),
-                "cat.michal.catbase.injector.mixedTest");
+        this.injector = new CatBaseInjector("cat.michal.catbase.injector.mixedTest");
     }
 
     @Test

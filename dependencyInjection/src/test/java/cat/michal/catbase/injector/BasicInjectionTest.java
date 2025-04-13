@@ -35,7 +35,7 @@ public class BasicInjectionTest {
 
     @Test
     void testConstructorInstantiationInjection() {
-        Assertions.assertTrue(classThatInjects.getDoable() instanceof FirstDoable);
+        Assertions.assertInstanceOf(FirstDoable.class, classThatInjects.getDoable());
     }
 
     @Test

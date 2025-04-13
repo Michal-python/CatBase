@@ -37,13 +37,6 @@ public interface Injector {
      */
     void registerInjectables();
 
-    /**
-     * Method that injects registered injectable components to fields of the given instance
-     *
-     * @param instance class which fields will be injected
-     * @param <T> instance type
-     */
-    <T> void injectField(T instance);
 
     /**
      * Method that returns all implementations of provided abstraction layer
@@ -57,9 +50,12 @@ public interface Injector {
      * Method that returns instance of an injectable component from dependency injection container
      *
      * @param clazz class type that will be returned
+     * @param dependencyName name of the dependency you want to inject
      * @return instance from dependency injection container
      * @param <T> is type that will be returned
      */
+    <T> T getInstance(Class<T> clazz, String dependencyName);
+
     <T> T getInstance(Class<T> clazz);
 
     /**

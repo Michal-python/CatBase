@@ -20,15 +20,12 @@ public class Dependency<T> {
     private final Set<Dependency<?>> depends;
     private T instance;
     private final Method provideMethod;
-    private final Class<?> containingClass;
 
-    public Dependency(String name, Class<T> clazz, T instance, Method provideMethod, Class<?> containingClass) {
+    public Dependency(String name, Class<T> clazz, Method provideMethod) {
         this.name = name;
         this.clazz = clazz;
-        this.instance = instance;
         this.provideMethod = provideMethod;
         this.depends = new HashSet<>();
-        this.containingClass = containingClass;
     }
 
     public Class<?> getClazz() {
@@ -37,10 +34,6 @@ public class Dependency<T> {
 
     public Method getProvideMethod() {
         return provideMethod;
-    }
-
-    public Class<?> getContainingClass() {
-        return containingClass;
     }
 
     public <D> void addDependency(Dependency<D> dependency) {

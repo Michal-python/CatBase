@@ -102,7 +102,10 @@ public class CatBaseInjector implements Injector {
 
     private void checkCircularDependency(Dependency<?> dependency, Set<Dependency<?>> visited, Set<Dependency<?>> stack) {
         if (stack.contains(dependency)) {
-            throw new InjectorException("Circular dependency detected involving " + stack.stream().map(clazz -> clazz.getClass().getSimpleName()).collect(Collectors.joining()));
+            StringBuilder dependencyList = new StringBuilder();
+
+            stack.stream().map(dep -> dep.getClazz().getSimpleName()).forEach(dep -> dependencyList.append(dep).append(", "));
+            throw new InjectorException("Circular dependency detected involving " + dependencyList);
         }
         if (!visited.contains(dependency)) {
             visited.add(dependency);

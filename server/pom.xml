@@ -6,7 +6,7 @@
     <parent>
         <groupId>cat.michal.catbase</groupId>
         <artifactId>CatBase</artifactId>
-        <version>1.9-fix</version>
+        <version>1.10</version>
     </parent>
 
     <groupId>cat.michal.catbase.server</groupId>

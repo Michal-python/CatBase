@@ -26,4 +26,11 @@ public class ListInjectionTest {
         Assertions.assertInstanceOf(SecondImpl.class, instance.getSecondLayer());
     }
 
+    @Test
+    void testInjectTest() {
+        InjectTo instance = this.injector.getInstance(InjectTo.class);
+
+        Assertions.assertEquals(2, instance.getAbstractions().size());
+    }
+
 }

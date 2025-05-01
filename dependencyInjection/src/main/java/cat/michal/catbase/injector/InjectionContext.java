@@ -211,11 +211,16 @@ public class InjectionContext {
     private boolean isValidInjectableType(Type type) {
         if(type instanceof ParameterizedType parameterType && Collection.class.isAssignableFrom(((Class<?>) parameterType.getRawType()))) {
             Type[] actualTypeArguments = parameterType.getActualTypeArguments();
-            if (actualTypeArguments.length != 1 || !(actualTypeArguments[0] instanceof Class)) {
+            if (actualTypeArguments.length != 1 || !(actualTypeArguments[0] instanceof Class<?> actualClass)) {
                 return false;
             }
+            //  if class is an abstraction layer which usually should be, we need to check if there are any implementations present, if not, the type is not an injectable type
+            if(actualClass.isInterface() || Modifier.isAbstract(actualClass.getModifiers())) {
+                return this.dependencies.stream()
+                        .anyMatch(dependency -> actualClass.isAssignableFrom(dependency.getClazz()));
+            }
 
-            return this.isValidInjectable((Class<?>) actualTypeArguments[0]);
+            return this.isValidInjectable(actualClass);
         }
         if (!(type instanceof Class<?> clazz)) {
             return false;

@@ -14,8 +14,15 @@ public class InjectTo {
 
     private final AbstractionLayer secondLayer;
 
-    public InjectTo(@Inject("second") AbstractionLayer secondLayer) {
+    private List<SecondAbstraction> abstractions;
+
+    public InjectTo(@Inject("second") AbstractionLayer secondLayer, List<SecondAbstraction> abstractions) {
         this.secondLayer = secondLayer;
+        this.abstractions = abstractions;
+    }
+
+    public List<SecondAbstraction> getAbstractions() {
+        return abstractions;
     }
 
     public AbstractionLayer getSecondLayer() {
